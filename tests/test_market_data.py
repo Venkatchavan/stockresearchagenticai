@@ -379,3 +379,83 @@ class TestDataValidation:
         
         if "market_cap" in data and data["market_cap"] != "N/A":
             assert data["market_cap"] > 0, "Market cap must be positive"
+
+
+class TestHelperFunctions:
+    """Tests for helper functions in market_data."""
+    
+    @pytest.mark.unit
+    def test_categorize_market_cap_large(self):
+        """Test market cap categorization for large cap."""
+        from tools.market_data import _categorize_market_cap
+        
+        # 50000 Cr = 500 billion
+        result = _categorize_market_cap(500_000_000_000)
+        assert result == "Large Cap"
+    
+    @pytest.mark.unit
+    def test_categorize_market_cap_mid(self):
+        """Test market cap categorization for mid cap."""
+        from tools.market_data import _categorize_market_cap
+        
+        # 10000 Cr = 100 billion
+        result = _categorize_market_cap(100_000_000_000)
+        assert result == "Mid Cap"
+    
+    @pytest.mark.unit
+    def test_categorize_market_cap_small(self):
+        """Test market cap categorization for small cap."""
+        from tools.market_data import _categorize_market_cap
+        
+        # 1000 Cr = 10 billion
+        result = _categorize_market_cap(10_000_000_000)
+        assert result == "Small Cap"
+    
+    @pytest.mark.unit
+    def test_categorize_market_cap_zero(self):
+        """Test market cap categorization for zero."""
+        from tools.market_data import _categorize_market_cap
+        
+        result = _categorize_market_cap(0)
+        assert result == "Unknown"
+    
+    @pytest.mark.unit
+    def test_categorize_market_cap_none(self):
+        """Test market cap categorization for None."""
+        from tools.market_data import _categorize_market_cap
+        
+        result = _categorize_market_cap(None)
+        assert result == "Unknown"
+
+
+class TestNseData:
+    """Tests for NSE-specific data fetching."""
+    
+    @pytest.mark.unit
+    def test_get_nse_stock_quote_returns_json(self, mock_yfinance):
+        """Test get_nse_stock_quote returns valid JSON."""
+        from tools.market_data import get_nse_stock_quote
+        
+        with patch('nsetools.Nse') as mock_nse:
+            mock_nse.return_value.get_quote.return_value = {
+                "companyName": "Reliance Industries",
+                "lastPrice": 2847.50,
+                "change": 25.5,
+                "pChange": 0.9
+            }
+            
+            result = get_nse_stock_quote.func("RELIANCE")
+            data = json.loads(result)
+            
+            assert isinstance(data, dict)
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_real_nse_stock_quote(self, valid_symbol):
+        """Integration test for NSE stock quote."""
+        from tools.market_data import get_nse_stock_quote
+        
+        result = get_nse_stock_quote.func(valid_symbol)
+        data = json.loads(result)
+        
+        assert isinstance(data, dict)

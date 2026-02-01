@@ -80,6 +80,168 @@ def get_trend_emoji(change):
     return "⚪"
 
 
+def generate_report_text(symbol: str, report_type: str, data: dict) -> str:
+    """Generate a downloadable text report from analysis data."""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")
+    
+    if report_type == "technical":
+        ma = data.get("moving_averages", {})
+        momentum = data.get("momentum", {})
+        volatility = data.get("volatility", {})
+        sr = data.get("support_resistance", {})
+        trend = data.get("trend", {})
+        signals = data.get("signals", [])
+        
+        report = f"""
+================================================================================
+                    TECHNICAL ANALYSIS REPORT - {symbol}
+================================================================================
+Generated: {timestamp}
+Source: Stock Research Assistant
+
+OVERALL SIGNAL: {data.get('overall_signal', 'N/A')}
+Signal Strength: {data.get('signal_strength', 'N/A')}
+
+--------------------------------------------------------------------------------
+MOVING AVERAGES
+--------------------------------------------------------------------------------
+SMA 20:  ₹{ma.get('sma_20', 'N/A')}
+SMA 50:  ₹{ma.get('sma_50', 'N/A')}
+SMA 200: ₹{ma.get('sma_200', 'N/A')}
+Price vs SMA20: {ma.get('price_vs_sma20', 'N/A')}
+Price vs SMA50: {ma.get('price_vs_sma50', 'N/A')}
+
+--------------------------------------------------------------------------------
+MOMENTUM INDICATORS
+--------------------------------------------------------------------------------
+RSI (14):        {momentum.get('rsi_14', 'N/A')} - {momentum.get('rsi_interpretation', 'N/A')}
+MACD Line:       {momentum.get('macd_line', 'N/A')}
+MACD Signal:     {momentum.get('macd_signal', 'N/A')}
+Rate of Change:  {momentum.get('roc_10_day', 'N/A')}%
+
+--------------------------------------------------------------------------------
+VOLATILITY (BOLLINGER BANDS)
+--------------------------------------------------------------------------------
+Upper Band:  ₹{volatility.get('bollinger_upper', 'N/A')}
+Middle Band: ₹{volatility.get('bollinger_middle', 'N/A')}
+Lower Band:  ₹{volatility.get('bollinger_lower', 'N/A')}
+BB Position: {volatility.get('bb_position', 'N/A')}
+ATR %:       {volatility.get('atr_percent', 'N/A')}
+
+--------------------------------------------------------------------------------
+SUPPORT & RESISTANCE LEVELS
+--------------------------------------------------------------------------------
+Resistance 2: ₹{sr.get('resistance_2', 'N/A')}
+Resistance 1: ₹{sr.get('resistance_1', 'N/A')}
+Pivot:        ₹{sr.get('pivot', 'N/A')}
+Support 1:    ₹{sr.get('support_1', 'N/A')}
+Support 2:    ₹{sr.get('support_2', 'N/A')}
+
+--------------------------------------------------------------------------------
+TREND ANALYSIS
+--------------------------------------------------------------------------------
+Short-term:  {trend.get('short_term', 'N/A')}
+Medium-term: {trend.get('medium_term', 'N/A')}
+Long-term:   {trend.get('long_term', 'N/A')}
+Golden Cross Active: {trend.get('golden_cross', 'N/A')}
+
+--------------------------------------------------------------------------------
+ACTIVE SIGNALS
+--------------------------------------------------------------------------------
+"""
+        for sig in signals:
+            report += f"- {sig.get('indicator', '')}: {sig.get('signal', '')} ({sig.get('strength', '')})\n"
+        
+        report += """
+================================================================================
+DISCLAIMER: This report is for educational purposes only. Not financial advice.
+================================================================================
+"""
+        return report
+    
+    elif report_type == "fundamental":
+        valuation = data.get("valuation", {})
+        profitability = data.get("profitability", {})
+        leverage = data.get("leverage", {})
+        growth = data.get("growth", {})
+        dividends = data.get("dividends", {})
+        size = data.get("size", {})
+        assessment = data.get("assessment", [])
+        
+        report = f"""
+================================================================================
+                   FUNDAMENTAL ANALYSIS REPORT - {symbol}
+================================================================================
+Generated: {timestamp}
+Source: Stock Research Assistant
+
+OVERALL RATING: {data.get('overall_rating', 'N/A')}
+Valuation Status: {data.get('valuation_status', 'N/A')}
+
+--------------------------------------------------------------------------------
+VALUATION METRICS
+--------------------------------------------------------------------------------
+P/E Ratio:     {valuation.get('pe_ratio', 'N/A')}
+P/B Ratio:     {valuation.get('pb_ratio', 'N/A')}
+EV/EBITDA:     {valuation.get('ev_ebitda', 'N/A')}
+Forward P/E:   {valuation.get('forward_pe', 'N/A')}
+PEG Ratio:     {valuation.get('peg_ratio', 'N/A')}
+
+--------------------------------------------------------------------------------
+PROFITABILITY
+--------------------------------------------------------------------------------
+ROE:           {profitability.get('roe', 'N/A')}
+ROA:           {profitability.get('roa', 'N/A')}
+Gross Margin:  {profitability.get('gross_margin', 'N/A')}
+Profit Margin: {profitability.get('profit_margin', 'N/A')}
+Operating Margin: {profitability.get('operating_margin', 'N/A')}
+
+--------------------------------------------------------------------------------
+LEVERAGE & LIQUIDITY
+--------------------------------------------------------------------------------
+Debt/Equity:    {leverage.get('debt_to_equity', 'N/A')}
+Current Ratio:  {leverage.get('current_ratio', 'N/A')}
+Quick Ratio:    {leverage.get('quick_ratio', 'N/A')}
+
+--------------------------------------------------------------------------------
+GROWTH METRICS
+--------------------------------------------------------------------------------
+Earnings Growth:   {growth.get('earnings_growth', 'N/A')}
+Revenue Growth:    {growth.get('revenue_growth', 'N/A')}
+Quarterly EPS Growth: {growth.get('quarterly_earnings_growth', 'N/A')}
+
+--------------------------------------------------------------------------------
+DIVIDENDS
+--------------------------------------------------------------------------------
+Dividend Yield: {dividends.get('dividend_yield', 'N/A')}
+Dividend Rate:  {dividends.get('dividend_rate', 'N/A')}
+Payout Ratio:   {dividends.get('payout_ratio', 'N/A')}
+
+--------------------------------------------------------------------------------
+COMPANY SIZE
+--------------------------------------------------------------------------------
+Market Cap:       {size.get('market_cap', 'N/A')}
+Enterprise Value: {size.get('enterprise_value', 'N/A')}
+Revenue:          {size.get('revenue', 'N/A')}
+EBITDA:           {size.get('ebitda', 'N/A')}
+
+--------------------------------------------------------------------------------
+KEY OBSERVATIONS
+--------------------------------------------------------------------------------
+"""
+        for item in assessment:
+            report += f"- {item.get('metric', '')}: {item.get('assessment', '')} [{item.get('impact', '')}]\n"
+        
+        report += """
+================================================================================
+DISCLAIMER: This report is for educational purposes only. Not financial advice.
+================================================================================
+"""
+        return report
+    
+    return "Report not available"
+
+
 def render_header():
     """Render the main header."""
     st.markdown('<h1 class="main-header">🇮🇳 Stock Research Assistant</h1>', unsafe_allow_html=True)
@@ -367,6 +529,19 @@ def render_technical_analysis(symbol: str):
                     st.info(f"**{indicator}:** {signal_text} ({strength})")
         else:
             st.info("No strong signals at the moment")
+        
+        # Download button for technical report
+        st.divider()
+        report_text = generate_report_text(symbol, "technical", tech_data)
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.download_button(
+                label="📥 Download Technical Report",
+                data=report_text,
+                file_name=f"{symbol}_technical_analysis_{datetime.now().strftime('%Y-%m-%d')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
     
     except Exception as e:
         st.error(f"Error in technical analysis: {e}")
@@ -505,6 +680,19 @@ def render_fundamental_analysis(symbol: str):
                     st.error(f"❌ **{metric}:** {assess}")
                 else:
                     st.info(f"ℹ️ **{metric}:** {assess}")
+        
+        # Download button for fundamental report
+        st.divider()
+        report_text = generate_report_text(symbol, "fundamental", fund_data)
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            st.download_button(
+                label="📥 Download Fundamental Report",
+                data=report_text,
+                file_name=f"{symbol}_fundamental_analysis_{datetime.now().strftime('%Y-%m-%d')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
     
     except Exception as e:
         st.error(f"Error in fundamental analysis: {e}")
@@ -661,11 +849,62 @@ def render_ai_analysis(symbol: str):
                 report = analyze_stock_sync(symbol, "full")
             
             st.success("✅ Analysis complete!")
+            
+            # Store report in session state for download
+            st.session_state[f"report_{symbol}"] = report
+            st.session_state[f"report_time_{symbol}"] = datetime.now().strftime("%Y-%m-%d_%H-%M")
+            
             st.divider()
             st.markdown(report)
             
         except Exception as e:
             st.error(f"Error during AI analysis: {e}")
+    
+    # Show download buttons if report exists in session state
+    if f"report_{symbol}" in st.session_state:
+        report = st.session_state[f"report_{symbol}"]
+        report_time = st.session_state.get(f"report_time_{symbol}", datetime.now().strftime("%Y-%m-%d_%H-%M"))
+        
+        st.divider()
+        st.markdown("#### 📥 Download Report")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Download as Markdown
+            st.download_button(
+                label="📄 Download as Markdown",
+                data=report,
+                file_name=f"{symbol}_research_report_{report_time}.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+        
+        with col2:
+            # Download as Text
+            st.download_button(
+                label="📝 Download as Text",
+                data=report,
+                file_name=f"{symbol}_research_report_{report_time}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+        
+        with col3:
+            # Download as JSON (structured)
+            report_json = json.dumps({
+                "symbol": symbol,
+                "generated_at": report_time,
+                "report": report,
+                "source": "Stock Research Assistant - AI Analysis"
+            }, indent=2)
+            st.download_button(
+                label="📊 Download as JSON",
+                data=report_json,
+                file_name=f"{symbol}_research_report_{report_time}.json",
+                mime="application/json",
+                use_container_width=True
+            )
 
 
 def main():
