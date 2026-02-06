@@ -68,11 +68,6 @@ def calculate_technical_indicators(symbol: str, period: str = "6mo") -> str:
         # ==========================================
         # MACD
         # ==========================================
-        macd_line = ema_12 - ema_26
-        macd_signal = close.ewm(span=9, adjust=False).mean().iloc[-1]
-        macd_histogram = macd_line - macd_signal
-        
-        # Full MACD calculation for signal line
         exp1 = close.ewm(span=12, adjust=False).mean()
         exp2 = close.ewm(span=26, adjust=False).mean()
         macd = exp1 - exp2

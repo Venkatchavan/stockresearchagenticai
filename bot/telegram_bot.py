@@ -243,39 +243,40 @@ NIFTY 50, NIFTY Next 50, NIFTY 500, and more.
     
     async def quick_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /quick command - Quick price check."""
+        reply_target = self._get_reply_message(update)
         if not context.args:
-            await update.message.reply_text(
+            await reply_target.reply_text(
                 "❌ Please provide a stock symbol.\n\n"
                 "Example: `/quick TCS`",
                 parse_mode=ParseMode.MARKDOWN,
             )
             return
-        
+
         symbol = context.args[0].upper().strip()
-        
+
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action=ChatAction.TYPING,
         )
-        
+
         try:
             # Get price data
             price_data = json.loads(get_stock_price.run(symbol))
             info_data = json.loads(get_stock_info.run(symbol))
-            
+
             if "error" in price_data:
-                await update.message.reply_text(
+                await reply_target.reply_text(
                     f"❌ Could not find data for **{symbol}**\n"
                     "Please check if the symbol is correct.",
                     parse_mode=ParseMode.MARKDOWN,
                 )
                 return
-            
+
             # Format message
             change = price_data.get("change", 0)
             change_pct = price_data.get("change_percent", 0)
             trend_emoji = "🟢" if change >= 0 else "🔴"
-            
+
             message = f"""
 {trend_emoji} **{symbol}** - Quick Overview
 
@@ -299,7 +300,7 @@ NIFTY 50, NIFTY Next 50, NIFTY 500, and more.
 ---
 _Updated: {datetime.now().strftime('%H:%M:%S IST')}_
 """
-            
+
             keyboard = [
                 [
                     InlineKeyboardButton("📊 Full Analysis", callback_data=f"analyze_{symbol}"),
@@ -311,41 +312,42 @@ _Updated: {datetime.now().strftime('%H:%M:%S IST')}_
                 ],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await update.message.reply_text(
+
+            await reply_target.reply_text(
                 message,
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=reply_markup,
             )
-            
+
         except Exception as e:
             logger.error(f"Quick check error for {symbol}: {e}")
-            await update.message.reply_text(
+            await reply_target.reply_text(
                 f"❌ Error fetching data for {symbol}\n{str(e)[:100]}",
             )
     
     async def technical_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /technical command."""
+        reply_target = self._get_reply_message(update)
         if not context.args:
-            await update.message.reply_text(
+            await reply_target.reply_text(
                 "❌ Please provide a stock symbol.\n\n"
                 "Example: `/technical INFY`",
                 parse_mode=ParseMode.MARKDOWN,
             )
             return
-        
+
         symbol = context.args[0].upper().strip()
-        
+
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action=ChatAction.TYPING,
         )
-        
+
         try:
             tech_data = json.loads(calculate_technical_indicators.run(symbol))
-            
+
             if "error" in tech_data:
-                await update.message.reply_text(f"❌ Error: {tech_data['error']}")
+                await reply_target.reply_text(f"❌ Error: {tech_data['error']}")
                 return
             
             # Format technical analysis message
@@ -397,35 +399,36 @@ _Updated: {datetime.now().strftime('%H:%M:%S IST')}_
                 message += f"• {sig.get('indicator', '')}: {sig.get('signal', '')}\n"
             
             message += f"\n---\n_Analysis as of {datetime.now().strftime('%H:%M:%S IST')}_"
-            
-            await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
-            
+
+            await reply_target.reply_text(message, parse_mode=ParseMode.MARKDOWN)
+
         except Exception as e:
             logger.error(f"Technical analysis error: {e}")
-            await update.message.reply_text(f"❌ Error: {str(e)[:100]}")
-    
+            await reply_target.reply_text(f"❌ Error: {str(e)[:100]}")
+
     async def fundamental_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /fundamental command."""
+        reply_target = self._get_reply_message(update)
         if not context.args:
-            await update.message.reply_text(
+            await reply_target.reply_text(
                 "❌ Please provide a stock symbol.\n\n"
                 "Example: `/fundamental HDFCBANK`",
                 parse_mode=ParseMode.MARKDOWN,
             )
             return
-        
+
         symbol = context.args[0].upper().strip()
-        
+
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action=ChatAction.TYPING,
         )
-        
+
         try:
             fund_data = json.loads(get_fundamental_metrics.run(symbol))
-            
+
             if "error" in fund_data:
-                await update.message.reply_text(f"❌ Error: {fund_data['error']}")
+                await reply_target.reply_text(f"❌ Error: {fund_data['error']}")
                 return
             
             val = fund_data.get("valuation", {})
@@ -484,25 +487,26 @@ _Updated: {datetime.now().strftime('%H:%M:%S IST')}_
 ---
 _Analysis as of {datetime.now().strftime('%H:%M:%S IST')}_
 """
-            
-            await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
-            
+
+            await reply_target.reply_text(message, parse_mode=ParseMode.MARKDOWN)
+
         except Exception as e:
             logger.error(f"Fundamental analysis error: {e}")
-            await update.message.reply_text(f"❌ Error: {str(e)[:100]}")
-    
+            await reply_target.reply_text(f"❌ Error: {str(e)[:100]}")
+
     async def news_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /news command."""
+        reply_target = self._get_reply_message(update)
         if not context.args:
-            await update.message.reply_text(
+            await reply_target.reply_text(
                 "❌ Please provide a stock symbol.\n\n"
                 "Example: `/news RELIANCE`",
                 parse_mode=ParseMode.MARKDOWN,
             )
             return
-        
+
         symbol = context.args[0].upper().strip()
-        
+
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action=ChatAction.TYPING,
@@ -514,44 +518,45 @@ _Analysis as of {datetime.now().strftime('%H:%M:%S IST')}_
             articles = news_data.get("articles", [])
             
             if not articles:
-                await update.message.reply_text(
+                await reply_target.reply_text(
                     f"📰 No recent news found for **{symbol}**",
                     parse_mode=ParseMode.MARKDOWN,
                 )
                 return
-            
+
             message = f"📰 **Latest News for {symbol}**\n\n"
-            
+
             for i, article in enumerate(articles[:7], 1):
                 title = article.get("title", "No title")[:100]
                 source = article.get("source", "Unknown")
                 url = article.get("url", "")
-                
+
                 if url:
                     message += f"**{i}.** [{title}]({url})\n"
                 else:
                     message += f"**{i}.** {title}\n"
                 message += f"   _Source: {source}_\n\n"
-            
+
             message += f"---\n_Fetched: {datetime.now().strftime('%H:%M:%S IST')}_"
-            
-            await update.message.reply_text(
+
+            await reply_target.reply_text(
                 message,
                 parse_mode=ParseMode.MARKDOWN,
                 disable_web_page_preview=True,
             )
-            
+
         except Exception as e:
             logger.error(f"News fetch error: {e}")
-            await update.message.reply_text(f"❌ Error fetching news: {str(e)[:100]}")
+            await reply_target.reply_text(f"❌ Error fetching news: {str(e)[:100]}")
     
     async def market_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /market command - Market overview."""
+        reply_target = self._get_reply_message(update)
         await context.bot.send_chat_action(
             chat_id=update.effective_chat.id,
             action=ChatAction.TYPING,
         )
-        
+
         try:
             indices_data = json.loads(get_index_data.run("ALL"))
             
@@ -600,15 +605,15 @@ _Analysis as of {datetime.now().strftime('%H:%M:%S IST')}_
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await update.message.reply_text(
+            await reply_target.reply_text(
                 message,
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=reply_markup,
             )
-            
+
         except Exception as e:
             logger.error(f"Market overview error: {e}")
-            await update.message.reply_text(f"❌ Error: {str(e)[:100]}")
+            await reply_target.reply_text(f"❌ Error: {str(e)[:100]}")
     
     async def nifty50_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle /nifty50 command - List NIFTY 50 stocks."""
@@ -636,47 +641,54 @@ _Analysis as of {datetime.now().strftime('%H:%M:%S IST')}_
         
         await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN)
     
+    @staticmethod
+    def _get_reply_message(update: Update):
+        """Get the message object to reply to, works for both direct messages and callbacks."""
+        if update.callback_query:
+            return update.callback_query.message
+        return update.message
+
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle inline button callbacks."""
         query = update.callback_query
         await query.answer()
-        
+
         data = query.data
-        
+        message = query.message
+
         # Handle action buttons
         if data == "action_analyze":
-            await query.message.reply_text(
+            await message.reply_text(
                 "📊 **Analyze a Stock**\n\n"
                 "Send the command with a stock symbol:\n"
                 "`/analyze RELIANCE`\n`/analyze TCS`\n`/analyze INFY`",
                 parse_mode=ParseMode.MARKDOWN,
             )
         elif data == "action_quick":
-            await query.message.reply_text(
+            await message.reply_text(
                 "⚡ **Quick Check**\n\n"
                 "Send the command with a stock symbol:\n"
                 "`/quick HDFCBANK`\n`/quick ICICIBANK`",
                 parse_mode=ParseMode.MARKDOWN,
             )
         elif data == "action_market":
-            # Simulate /market command
+            # Simulate /market command - pass full update so handler can find the message
             context.args = []
-            await self.market_command(query, context)
+            await self.market_command(update, context)
         elif data == "action_nifty50":
-            # Simulate /nifty50 command
-            await query.message.reply_text(
+            await message.reply_text(
                 self._format_nifty50_list(),
                 parse_mode=ParseMode.MARKDOWN,
             )
         elif data == "action_help":
-            await query.message.reply_text(
+            await message.reply_text(
                 "Use /help to see all available commands and how to use them.",
             )
-        
+
         # Handle stock-specific callbacks
         elif data.startswith("analyze_"):
             symbol = data.replace("analyze_", "")
-            await query.message.reply_text(
+            await message.reply_text(
                 f"Starting full analysis for **{symbol}**...\n"
                 f"Use `/analyze {symbol}` to begin.",
                 parse_mode=ParseMode.MARKDOWN,
@@ -684,15 +696,15 @@ _Analysis as of {datetime.now().strftime('%H:%M:%S IST')}_
         elif data.startswith("technical_"):
             symbol = data.replace("technical_", "")
             context.args = [symbol]
-            await self.technical_command(query, context)
+            await self.technical_command(update, context)
         elif data.startswith("fundamental_"):
             symbol = data.replace("fundamental_", "")
             context.args = [symbol]
-            await self.fundamental_command(query, context)
+            await self.fundamental_command(update, context)
         elif data.startswith("news_"):
             symbol = data.replace("news_", "")
             context.args = [symbol]
-            await self.news_command(query, context)
+            await self.news_command(update, context)
     
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle plain text messages - treat as stock symbol."""

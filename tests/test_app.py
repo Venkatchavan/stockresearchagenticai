@@ -34,7 +34,7 @@ class TestFormatNumber:
                         return f"₹{num/100_000:.2f} L"
                     else:
                         return f"₹{num:,.2f}"
-                except:
+                except (ValueError, TypeError):
                     return str(num)
             
             assert "Cr" in format_number(50_000_000)
@@ -54,7 +54,7 @@ class TestFormatNumber:
                     return f"₹{num/100_000:.2f} L"
                 else:
                     return f"₹{num:,.2f}"
-            except:
+            except (ValueError, TypeError):
                 return str(num)
         
         assert "L" in format_number(500_000)
@@ -74,7 +74,7 @@ class TestFormatNumber:
                     return f"₹{num/100_000:.2f} L"
                 else:
                     return f"₹{num:,.2f}"
-            except:
+            except (ValueError, TypeError):
                 return str(num)
         
         assert format_number(1234.56) == "₹1,234.56"
@@ -99,7 +99,7 @@ class TestFormatNumber:
             try:
                 num = float(num)
                 return f"₹{num:,.2f}"
-            except:
+            except (ValueError, TypeError):
                 return str(num)
         
         assert format_number("invalid") == "invalid"
@@ -237,7 +237,7 @@ class TestUIDataFormatting:
             try:
                 dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
                 return dt.strftime("%d %b %Y, %H:%M")
-            except:
+            except (ValueError, TypeError):
                 return date_str
         
         result = format_date("2026-02-01T10:30:00")

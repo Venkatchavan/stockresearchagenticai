@@ -5,6 +5,8 @@ Scrapes news from Moneycontrol, Economic Times, Business Standard, and other sou
 
 import json
 import re
+import threading
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Optional
 import httpx
@@ -13,7 +15,6 @@ from crewai.tools import tool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 # Common headers for web scraping
-# Note: Removed 'br' (brotli) from Accept-Encoding as httpx may not have brotli support
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -23,9 +24,33 @@ HEADERS = {
     "Upgrade-Insecure-Requests": "1",
 }
 
-# News cache
-_news_cache = {}
+# Thread-safe news cache with LRU eviction
+_news_cache_lock = threading.Lock()
+_news_cache: OrderedDict = OrderedDict()
 _cache_ttl = 600  # 10 minutes
+_cache_max_size = 100
+
+
+def _news_cache_get(key: str) -> dict | None:
+    """Thread-safe cache read."""
+    with _news_cache_lock:
+        if key not in _news_cache:
+            return None
+        entry = _news_cache[key]
+        if (datetime.now().timestamp() - entry["timestamp"]) >= _cache_ttl:
+            del _news_cache[key]
+            return None
+        _news_cache.move_to_end(key)
+        return entry
+
+
+def _news_cache_set(key: str, data: dict) -> None:
+    """Thread-safe cache write with LRU eviction."""
+    with _news_cache_lock:
+        _news_cache[key] = {"data": data, "timestamp": datetime.now().timestamp()}
+        _news_cache.move_to_end(key)
+        while len(_news_cache) > _cache_max_size:
+            _news_cache.popitem(last=False)
 
 
 def _clean_text(text: str) -> str:
@@ -77,9 +102,9 @@ def _parse_relative_time(time_str: str) -> str:
                 return dt.isoformat()
             except ValueError:
                 continue
-    except:
+    except (ValueError, TypeError):
         pass
-    
+
     return time_str
 
 
@@ -96,10 +121,9 @@ def scrape_moneycontrol_news(symbol: str, limit: int = 10) -> str:
         JSON string with list of news articles including title, summary, date, and URL.
     """
     cache_key = f"mc_news_{symbol}"
-    if cache_key in _news_cache:
-        cached = _news_cache[cache_key]
-        if (datetime.now().timestamp() - cached["timestamp"]) < _cache_ttl:
-            return json.dumps(cached["data"], indent=2)
+    cached = _news_cache_get(cache_key)
+    if cached:
+        return json.dumps(cached["data"], indent=2)
     
     symbol = symbol.upper().strip()
     
@@ -217,7 +241,7 @@ def scrape_moneycontrol_news(symbol: str, limit: int = 10) -> str:
                                     "published": datetime.now().isoformat(),
                                     "source": "Moneycontrol",
                                 })
-                        except:
+                        except Exception:
                             continue
         
         result = {
@@ -228,9 +252,9 @@ def scrape_moneycontrol_news(symbol: str, limit: int = 10) -> str:
             "fetched_at": datetime.now().isoformat(),
         }
         
-        _news_cache[cache_key] = {"data": result, "timestamp": datetime.now().timestamp()}
+        _news_cache_set(cache_key, result)
         return json.dumps(result, indent=2)
-    
+
     except Exception as e:
         return json.dumps({
             "symbol": symbol,
@@ -253,10 +277,9 @@ def scrape_economic_times_news(symbol: str, limit: int = 10) -> str:
         JSON string with list of news articles.
     """
     cache_key = f"et_news_{symbol}"
-    if cache_key in _news_cache:
-        cached = _news_cache[cache_key]
-        if (datetime.now().timestamp() - cached["timestamp"]) < _cache_ttl:
-            return json.dumps(cached["data"], indent=2)
+    cached = _news_cache_get(cache_key)
+    if cached:
+        return json.dumps(cached["data"], indent=2)
     
     symbol = symbol.upper().strip()
     news_articles = []
@@ -324,9 +347,9 @@ def scrape_economic_times_news(symbol: str, limit: int = 10) -> str:
             "fetched_at": datetime.now().isoformat(),
         }
         
-        _news_cache[cache_key] = {"data": result, "timestamp": datetime.now().timestamp()}
+        _news_cache_set(cache_key, result)
         return json.dumps(result, indent=2)
-    
+
     except Exception as e:
         return json.dumps({
             "symbol": symbol,
@@ -528,9 +551,9 @@ def get_market_news_headlines(category: str = "stocks", limit: int = 15) -> str:
                                     "url": url,
                                     "source": "Moneycontrol",
                                 })
-                    except:
+                    except Exception:
                         continue
-        
+
         return json.dumps({
             "category": category,
             "headlines_count": len(headlines),

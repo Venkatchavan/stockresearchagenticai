@@ -71,7 +71,7 @@ def run_analysis(symbol: str, analysis_type: str = "full"):
     try:
         md = Markdown(report)
         console.print(md)
-    except:
+    except Exception:
         # Fallback to plain text if markdown fails
         console.print(report)
     

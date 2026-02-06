@@ -2,7 +2,6 @@
 Streamlit Web UI for Stock Research Assistant
 Beautiful dashboard for Indian stock market analysis
 """
-
 import streamlit as st
 import json
 from datetime import datetime
@@ -51,6 +50,18 @@ st.markdown("""
         padding: 10px 20px;
         border-radius: 5px;
     }
+    .report-box {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 2rem 2.5rem;
+        margin: 1rem 0;
+        line-height: 1.7;
+    }
+    .report-box h1 { font-size: 1.6rem; margin-top: 0; }
+    .report-box h2 { font-size: 1.3rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.4rem; }
+    .report-box h3 { font-size: 1.1rem; }
+    .report-box hr { border-color: rgba(255,255,255,0.08); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -67,7 +78,7 @@ def format_number(num):
             return f"₹{num/100_000:.2f} L"
         else:
             return f"₹{num:,.2f}"
-    except:
+    except (ValueError, TypeError):
         return str(num)
 
 
@@ -80,10 +91,34 @@ def get_trend_emoji(change):
     return "⚪"
 
 
+def _safe_val(value, prefix="", suffix=""):
+    """Safely format a value for reports, handling None and N/A."""
+    if value is None or value == "N/A" or value == 0:
+        return "N/A"
+    return f"{prefix}{value}{suffix}"
+
+
+def _clean_report_markdown(report: str) -> str:
+    """Clean up LLM-generated report for proper Streamlit rendering.
+
+    Strips wrapping code fences that cause st.markdown to render
+    the entire report as a monospace code block.
+    """
+    import re
+    text = report.strip()
+    # Remove wrapping ```markdown ... ``` or ``` ... ```
+    text = re.sub(r'^```(?:markdown)?\s*\n', '', text)
+    text = re.sub(r'\n```\s*$', '', text)
+    return text.strip()
+
+
 def generate_report_text(symbol: str, report_type: str, data: dict) -> str:
     """Generate a downloadable text report from analysis data."""
+    if not data or not isinstance(data, dict):
+        return f"Report for {symbol}: No data available."
+
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")
-    
+
     if report_type == "technical":
         ma = data.get("moving_averages", {})
         momentum = data.get("momentum", {})
@@ -160,13 +195,13 @@ DISCLAIMER: This report is for educational purposes only. Not financial advice.
         return report
     
     elif report_type == "fundamental":
-        valuation = data.get("valuation", {})
-        profitability = data.get("profitability", {})
-        leverage = data.get("leverage", {})
-        growth = data.get("growth", {})
-        dividends = data.get("dividends", {})
-        size = data.get("size", {})
-        assessment = data.get("assessment", [])
+        valuation = data.get("valuation") or {}
+        profitability = data.get("profitability") or {}
+        leverage = data.get("financial_health") or data.get("leverage") or {}
+        growth = data.get("growth") or {}
+        dividends = data.get("dividends") or {}
+        size = data.get("size") or {}
+        assessment = data.get("assessment") or []
         
         report = f"""
 ================================================================================
@@ -796,7 +831,12 @@ def render_institutional(symbol: str):
             
             deals = deals_data.get("deals", [])
             
-            if deals and not isinstance(deals[0], dict) or "note" not in deals[0]:
+            has_real_deals = (
+                deals
+                and isinstance(deals[0], dict)
+                and "note" not in deals[0]
+            )
+            if has_real_deals:
                 for deal in deals[:5]:
                     st.markdown(f"""
                     - **{deal.get('stock', 'N/A')}**: {deal.get('deal_type', 'N/A')}
@@ -849,23 +889,28 @@ def render_ai_analysis(symbol: str):
                 report = analyze_stock_sync(symbol, "full")
             
             st.success("✅ Analysis complete!")
-            
+
             # Store report in session state for download
             st.session_state[f"report_{symbol}"] = report
             st.session_state[f"report_time_{symbol}"] = datetime.now().strftime("%Y-%m-%d_%H-%M")
-            
+
             st.divider()
-            st.markdown(report)
+            cleaned = _clean_report_markdown(report)
+            with st.container(border=True):
+                st.markdown(cleaned)
             
         except Exception as e:
             st.error(f"Error during AI analysis: {e}")
     
-    # Show download buttons if report exists in session state
+    # Show stored report and download buttons
     if f"report_{symbol}" in st.session_state:
         report = st.session_state[f"report_{symbol}"]
         report_time = st.session_state.get(f"report_time_{symbol}", datetime.now().strftime("%Y-%m-%d_%H-%M"))
-        
-        st.divider()
+
+        with st.expander(f"📄 View Report ({report_time})", expanded=True):
+            cleaned = _clean_report_markdown(report)
+            st.markdown(cleaned)
+
         st.markdown("#### 📥 Download Report")
         
         col1, col2, col3 = st.columns(3)
@@ -985,7 +1030,7 @@ def main():
                         f"₹{price_data.get('current_price', 0):,.2f}",
                         f"{change:+.2f}%"
                     )
-                except:
+                except Exception:
                     st.metric(stock, "Loading...")
 
 

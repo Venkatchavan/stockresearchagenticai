@@ -51,9 +51,9 @@ def get_fii_dii_data() -> str:
                                 fii_data["buy"] = float(numbers[0].replace(',', ''))
                                 fii_data["sell"] = float(numbers[1].replace(',', ''))
                                 fii_data["net"] = fii_data["buy"] - fii_data["sell"]
-                            except:
+                            except (ValueError, IndexError):
                                 pass
-                    
+
                     if 'dii' in text or 'domestic' in text:
                         numbers = re.findall(r'[\d,]+\.?\d*', table.get_text())
                         if len(numbers) >= 3:
@@ -61,7 +61,7 @@ def get_fii_dii_data() -> str:
                                 dii_data["buy"] = float(numbers[0].replace(',', ''))
                                 dii_data["sell"] = float(numbers[1].replace(',', ''))
                                 dii_data["net"] = dii_data["buy"] - dii_data["sell"]
-                            except:
+                            except (ValueError, IndexError):
                                 pass
                 
                 # Determine market sentiment
@@ -234,7 +234,7 @@ def get_promoter_holdings(symbol: str) -> str:
         try:
             holders = ticker.major_holders
             institutional_holders = ticker.institutional_holders
-        except:
+        except Exception:
             holders = None
             institutional_holders = None
         

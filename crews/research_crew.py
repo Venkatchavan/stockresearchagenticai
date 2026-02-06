@@ -56,18 +56,18 @@ def create_stock_research_crew(symbol: str, analysis_type: str = "full") -> Crew
     # ==========================================
     news_analysis_task = Task(
         description=f"""Gather and analyze all recent news about {symbol}:
-        
-        1. Scrape news from Moneycontrol
-        2. Scrape news from Economic Times
-        3. Get comprehensive news from multiple sources
-        4. Analyze sentiment of each news item
-        5. Identify any material news that could impact stock price
-        
-        Classify overall news sentiment and highlight the top 5 most important news items.
-        Look for: earnings announcements, management changes, contract wins, regulatory issues,
-        analyst upgrades/downgrades, and sector-wide news.""",
+
+        1. Use the "Get Comprehensive Stock News" tool to fetch news from
+           Moneycontrol, Economic Times, and Business Standard in one call
+        2. Use "Get Market News Headlines" to check for broader market news
+        3. Analyze the sentiment of each headline and summary returned
+        4. Identify any material news that could impact stock price
+
+        Classify overall news sentiment and highlight the top 5 most important
+        news items. Look for: earnings announcements, management changes,
+        contract wins, regulatory issues, analyst upgrades/downgrades.""",
         expected_output=f"""A news analysis report for {symbol} containing:
-        - List of recent news articles with sentiment scores
+        - List of recent news articles with sentiment assessment per headline
         - Overall sentiment assessment (Bullish/Bearish/Neutral)
         - Key news highlights that could impact price
         - Any red flags or positive catalysts identified""",
@@ -78,23 +78,28 @@ def create_stock_research_crew(symbol: str, analysis_type: str = "full") -> Crew
     # Task 3: Fundamental Analysis
     # ==========================================
     fundamental_task = Task(
-        description=f"""Perform deep fundamental analysis of {symbol}:
-        
-        1. Calculate and analyze all key fundamental metrics
-        2. Evaluate valuation (PE, PB, EV/EBITDA)
-        3. Assess profitability (ROE, ROCE, margins)
-        4. Check financial health (debt levels, current ratio)
-        5. Analyze growth metrics
-        6. Check promoter and institutional holdings
-        
-        Compare metrics with sector averages and historical values.
-        Identify if the stock is undervalued, fairly valued, or overvalued.
-        Use the market data provided by the Market Data Analyst.""",
+        description=f"""Perform fundamental analysis of {symbol} using your tools:
+
+        1. Use "Get Fundamental Metrics" to get valuation, profitability,
+           financial health, growth, and dividend data with overall rating
+        2. Use "Get Stock Info" for company overview (sector, industry, description)
+        3. Use "Get Promoter Holdings" to check shareholding pattern
+        4. Use "Get Mutual Fund Holdings" to gauge institutional interest
+
+        Based on the tool output:
+        - Assess if valuation ratios (PE, PB, EV/EBITDA) suggest under/overvaluation
+        - Evaluate profitability (ROE, ROA, margins)
+        - Check financial health (debt/equity, current ratio)
+        - Review growth trends (earnings growth, revenue growth)
+        - Analyze promoter and institutional holding patterns
+
+        Only report metrics that your tools return. If a metric is "N/A",
+        note it as unavailable. Use the market data from the previous task.""",
         expected_output=f"""A fundamental analysis report for {symbol} including:
-        - Valuation assessment with specific metrics
+        - Valuation assessment with specific metrics from tool output
         - Profitability analysis
         - Financial health evaluation
-        - Growth prospects assessment
+        - Growth assessment
         - Shareholding pattern analysis
         - Overall fundamental rating (Strong Buy to Strong Sell)""",
         agent=fundamental_analyst_agent,
@@ -105,28 +110,30 @@ def create_stock_research_crew(symbol: str, analysis_type: str = "full") -> Crew
     # Task 4: Technical Analysis
     # ==========================================
     technical_task = Task(
-        description=f"""Perform comprehensive technical analysis of {symbol}:
-        
-        1. Calculate all major technical indicators (RSI, MACD, Bollinger Bands)
-        2. Identify current trend (short, medium, long-term)
-        3. Find key support and resistance levels
-        4. Analyze recent price action patterns
-        5. Check volume patterns for confirmation
-        6. Look for any chart patterns forming
-        
-        Provide specific price levels for:
-        - Entry point(s)
-        - Stop-loss level
-        - Target prices (short-term and medium-term)
-        
-        Use the historical data from Market Data Analyst.""",
+        description=f"""Perform technical analysis of {symbol} using your tools:
+
+        1. Use "Calculate Technical Indicators" to get RSI, MACD, Bollinger Bands,
+           moving averages, ATR, volume ratio, support/resistance, and signals
+        2. Use "Analyze Price Action" to get trend direction, swing points,
+           and key price levels
+        3. Use "Get Historical Data" if you need additional price context
+
+        Based on the tool output:
+        - Identify current trend (short, medium, long-term from MA analysis)
+        - Interpret indicator signals (RSI, MACD crossovers, BB position)
+        - Note support/resistance levels from pivot calculations
+        - Check volume confirmation (volume ratio)
+
+        Derive entry, stop-loss, and target prices from the support/resistance
+        levels provided by the tools. Do not reference indicators (Stochastic,
+        ADX, Fibonacci, candlestick patterns) that are not in your tool output.""",
         expected_output=f"""A technical analysis report for {symbol} containing:
-        - Current trend assessment
-        - Key indicator readings (RSI, MACD, etc.)
-        - Support and resistance levels
-        - Trading signals (buy/sell/hold)
+        - Current trend assessment (short/medium/long term)
+        - Key indicator readings (RSI, MACD, Bollinger Bands, ATR)
+        - Support and resistance levels from pivot calculations
+        - Trading signals from the tool's signal analysis
         - Specific entry, stop-loss, and target prices
-        - Chart pattern observations if any""",
+        - Volume analysis""",
         agent=technical_analyst_agent,
         context=[market_data_task],
     )
@@ -169,37 +176,41 @@ def create_stock_research_crew(symbol: str, analysis_type: str = "full") -> Crew
     # ==========================================
     report_task = Task(
         description=f"""Create a comprehensive, well-structured research report for {symbol}:
-        
+
         Compile all findings from:
         - Market Data Analysis
-        - News & Sentiment Analysis  
+        - News & Sentiment Analysis
         - Fundamental Analysis
         - Technical Analysis
         - Investment Strategy
-        
-        Structure the report with:
-        1. 📊 **Executive Summary** - Key takeaways in 3-4 bullet points
-        2. 🏢 **Company Snapshot** - Brief overview
-        3. 💰 **Fundamental Highlights** - Key metrics and assessment
-        4. 📈 **Technical View** - Trend and key levels
-        5. 📰 **News & Sentiment** - Recent developments
-        6. ⚠️ **Risk Assessment** - Key risks to consider
-        7. 🎯 **Recommendation** - Clear action with targets
-        
-        Format for Telegram (use markdown):
-        - Use emojis appropriately
-        - Keep sections concise
-        - Highlight key numbers
-        - Include specific price levels
-        - Use Indian number format (lakhs, crores)
-        
-        End with a clear action statement and disclaimer.""",
-        expected_output=f"""A professional research report for {symbol} formatted for Telegram with:
-        - Clear structure with emoji headings
+
+        Structure the report with these sections:
+        1. **Executive Summary** - Key takeaways in 3-4 bullet points
+        2. **Company Snapshot** - Brief overview with sector and market cap
+        3. **Fundamental Highlights** - Key metrics and assessment
+        4. **Technical View** - Trend, indicators, and key levels
+        5. **News & Sentiment** - Recent developments and sentiment
+        6. **Risk Assessment** - Key risks to consider
+        7. **Recommendation** - Clear action with targets and stop-loss
+
+        Formatting guidelines:
+        - Use markdown with clear section headings
+        - Keep sections concise and focused
+        - Highlight key numbers (prices, ratios, percentages)
+        - Include specific price levels for entry, target, and stop-loss
+        - Use Indian number format (lakhs, crores) for large values
+
+        IMPORTANT: Only include data and metrics that were provided by the
+        other analysts. Do not introduce new statistics or price targets
+        beyond what the analysis contains.
+
+        End with a clear action statement and a standard investment disclaimer.""",
+        expected_output=f"""A professional research report for {symbol} with:
+        - Clear markdown structure with section headings
         - Executive summary at the top
-        - All key analysis points covered
+        - All key analysis points from previous agents covered
         - Specific actionable recommendation
-        - Price targets and stop-loss levels
+        - Price targets and stop-loss levels from technical analysis
         - Standard investment disclaimer""",
         agent=report_writer_agent,
         context=[market_data_task, news_analysis_task, fundamental_task, technical_task, strategy_task],
@@ -245,24 +256,19 @@ def create_stock_research_crew(symbol: str, analysis_type: str = "full") -> Crew
 async def analyze_stock(symbol: str, analysis_type: str = "full") -> str:
     """
     Run complete stock analysis and return the report.
-    
+
+    Uses asyncio.to_thread to run the synchronous CrewAI kickoff
+    without blocking the event loop.
+
     Args:
         symbol: Stock symbol (e.g., 'RELIANCE')
         analysis_type: 'full', 'quick', or 'technical-only'
-        
+
     Returns:
         Formatted research report string
     """
-    crew = create_stock_research_crew(symbol, analysis_type)
-    result = crew.kickoff()
-    
-    # Extract the final output
-    if hasattr(result, 'raw'):
-        return result.raw
-    elif hasattr(result, 'output'):
-        return result.output
-    else:
-        return str(result)
+    import asyncio
+    return await asyncio.to_thread(analyze_stock_sync, symbol, analysis_type)
 
 
 def analyze_stock_sync(symbol: str, analysis_type: str = "full") -> str:

@@ -26,9 +26,9 @@ cp .env.example .env
 # Edit .env with your MISTRAL_API_KEY
 
 # Run Web UI
-source .venv/bin/activate && streamlit run app.py
+uv run streamlit run app.py
 
-# Or run CLI
+# Run CLI
 uv run python run_analysis.py RELIANCE --quick
 ```
 
@@ -75,7 +75,7 @@ uv run python run_analysis.py RELIANCE --quick
 
 ### 💰 Fundamental Analysis
 - P/E, P/B, EV/EBITDA ratios
-- ROE, ROCE, Profit margins
+- ROE, ROA, Profit margins
 - Debt analysis
 - Dividend tracking
 - Growth metrics
@@ -181,12 +181,13 @@ price = ticker.info["currentPrice"]  # ₹1,395.40
 
 | Indicator | What It Tells You | Library |
 |-----------|-------------------|---------|
-| **RSI** | Overbought (>70) / Oversold (<30) | `ta` |
-| **MACD** | Momentum & trend direction | `ta` |
+| **RSI** | Overbought (>70) / Oversold (<30) | `pandas` |
+| **MACD** | Momentum & trend direction | `pandas` |
 | **SMA 20/50/200** | Short/Medium/Long term trends | `pandas` |
-| **EMA 12/26** | Faster-reacting trends | `ta` |
-| **Bollinger Bands** | Volatility & reversals | `ta` |
-| **Support/Resistance** | Key price levels | Custom |
+| **EMA 12/26** | Faster-reacting trends | `pandas` |
+| **Bollinger Bands** | Volatility & reversals | `pandas` |
+| **ATR** | Volatility measurement | `pandas` |
+| **Support/Resistance** | Key price levels (pivot-based) | Custom |
 
 ### Fundamental Metrics
 

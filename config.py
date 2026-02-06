@@ -26,14 +26,6 @@ class Settings(BaseSettings):
     telegram_admin_ids: str = Field(default="", env="TELEGRAM_ADMIN_IDS")
     
     # ==========================================
-    # Database Configuration
-    # ==========================================
-    database_url: str = Field(
-        default="sqlite:///./data/stock_research.db",
-        env="DATABASE_URL"
-    )
-    
-    # ==========================================
     # Cache Configuration
     # ==========================================
     cache_ttl_minutes: int = Field(default=15, env="CACHE_TTL_MINUTES")

@@ -31,8 +31,9 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ### Step 2: Clone & Install Dependencies
 
 ```bash
-# Navigate to project
-cd /Users/vishwas/Documents/projects/stock-research-assistant
+# Clone the repository
+git clone https://github.com/vishwaskv362/StockResearchAIAgent.git
+cd StockResearchAIAgent
 
 # Install all dependencies (uv auto-creates .venv)
 uv sync
@@ -88,14 +89,8 @@ OTEL_SDK_DISABLED=true
 ### 🌐 Web UI (Streamlit) - Recommended
 
 ```bash
-cd /Users/vishwas/Documents/projects/stock-research-assistant
-
-# Method 1: Activate venv and run
-source .venv/bin/activate
-streamlit run app.py
-
-# Method 2: Use uv run with python -m
-uv run python -m streamlit run app.py
+# Run with uv (recommended)
+uv run streamlit run app.py
 ```
 
 **Access at:** http://localhost:8501
@@ -103,8 +98,6 @@ uv run python -m streamlit run app.py
 ### 💻 Command Line Interface
 
 ```bash
-cd /Users/vishwas/Documents/projects/stock-research-assistant
-
 # Quick price check (instant, no AI)
 uv run python run_analysis.py RELIANCE --quick
 
@@ -124,8 +117,6 @@ uv run python run_analysis.py --help
 ### 🤖 Telegram Bot
 
 ```bash
-cd /Users/vishwas/Documents/projects/stock-research-assistant
-
 # Start the bot
 uv run python run_bot.py
 ```
@@ -185,10 +176,10 @@ grep MISTRAL_API_KEY .env
 ### Streamlit not found
 
 ```bash
-# Install streamlit explicitly
-uv pip install streamlit
+# Reinstall all deps
+uv sync
 
-# Run with python -m
+# Or run with python -m as fallback
 uv run python -m streamlit run app.py
 ```
 
@@ -196,7 +187,7 @@ uv run python -m streamlit run app.py
 
 ```bash
 # Use different port
-streamlit run app.py --server.port 8502
+uv run streamlit run app.py --server.port 8502
 ```
 
 ### CrewAI telemetry warnings
@@ -235,8 +226,6 @@ stock-research-assistant/
 Run this to verify everything works:
 
 ```bash
-cd /Users/vishwas/Documents/projects/stock-research-assistant
-
 # Test market data (no API key needed)
 uv run python -c "
 from tools.market_data import get_stock_price

@@ -49,8 +49,12 @@ def create_investment_strategist_agent() -> Agent:
         - Time-bound with review triggers
         - Suitable for retail investors with limited capital
         
-        You present a balanced view, acknowledging both bull and bear cases, 
-        and clearly state your conviction level (High/Medium/Low).""",
+        You present a balanced view, acknowledging both bull and bear cases,
+        and clearly state your conviction level (High/Medium/Low).
+
+        IMPORTANT: Base your recommendation on the data provided by the
+        other analysts and your own tools. Do not fabricate price targets,
+        earnings estimates, or statistics not present in the analysis.""",
         tools=[
             get_fii_dii_data,
             get_bulk_block_deals,

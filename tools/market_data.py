@@ -4,6 +4,8 @@ Fetches real-time and historical data from NSE, BSE, and Yahoo Finance
 """
 
 import json
+import threading
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Optional
 import httpx
@@ -12,9 +14,11 @@ from crewai.tools import tool
 from tenacity import retry, stop_after_attempt, wait_exponential
 import pandas as pd
 
-# Cache for stock data to reduce API calls
-_cache = {}
+# Thread-safe LRU cache for stock data
+_cache_lock = threading.Lock()
+_cache: OrderedDict = OrderedDict()
 _cache_ttl = 900  # 15 minutes
+_cache_max_size = 200
 
 
 def _get_nse_symbol(symbol: str) -> str:
@@ -26,11 +30,30 @@ def _get_nse_symbol(symbol: str) -> str:
 
 
 def _is_cache_valid(key: str) -> bool:
-    """Check if cached data is still valid."""
-    if key not in _cache:
-        return False
-    cached_time = _cache[key].get("timestamp", 0)
-    return (datetime.now().timestamp() - cached_time) < _cache_ttl
+    """Check if cached data is still valid (thread-safe)."""
+    with _cache_lock:
+        if key not in _cache:
+            return False
+        cached_time = _cache[key].get("timestamp", 0)
+        return (datetime.now().timestamp() - cached_time) < _cache_ttl
+
+
+def _cache_get(key: str) -> dict | None:
+    """Thread-safe cache read."""
+    with _cache_lock:
+        entry = _cache.get(key)
+        if entry:
+            _cache.move_to_end(key)
+        return entry
+
+
+def _cache_set(key: str, data: dict) -> None:
+    """Thread-safe cache write with LRU eviction."""
+    with _cache_lock:
+        _cache[key] = {"data": data, "timestamp": datetime.now().timestamp()}
+        _cache.move_to_end(key)
+        while len(_cache) > _cache_max_size:
+            _cache.popitem(last=False)
 
 
 @tool("Get Stock Price")
@@ -46,8 +69,8 @@ def get_stock_price(symbol: str) -> str:
     """
     cache_key = f"price_{symbol}"
     if _is_cache_valid(cache_key):
-        return json.dumps(_cache[cache_key]["data"], indent=2)
-    
+        return json.dumps(_cache_get(cache_key)["data"], indent=2)
+
     try:
         ticker = yf.Ticker(_get_nse_symbol(symbol))
         info = ticker.info
@@ -80,11 +103,10 @@ def get_stock_price(symbol: str) -> str:
             "timestamp": datetime.now().isoformat(),
         }
         
-        # Cache the data
-        _cache[cache_key] = {"data": data, "timestamp": datetime.now().timestamp()}
-        
+        _cache_set(cache_key, data)
+
         return json.dumps(data, indent=2)
-    
+
     except Exception as e:
         return json.dumps({"error": str(e), "symbol": symbol})
 
@@ -102,8 +124,8 @@ def get_stock_info(symbol: str) -> str:
     """
     cache_key = f"info_{symbol}"
     if _is_cache_valid(cache_key):
-        return json.dumps(_cache[cache_key]["data"], indent=2)
-    
+        return json.dumps(_cache_get(cache_key)["data"], indent=2)
+
     try:
         ticker = yf.Ticker(_get_nse_symbol(symbol))
         info = ticker.info
@@ -133,11 +155,10 @@ def get_stock_info(symbol: str) -> str:
             "timestamp": datetime.now().isoformat(),
         }
         
-        # Cache the data
-        _cache[cache_key] = {"data": data, "timestamp": datetime.now().timestamp()}
-        
+        _cache_set(cache_key, data)
+
         return json.dumps(data, indent=2)
-    
+
     except Exception as e:
         return json.dumps({"error": str(e), "symbol": symbol})
 
@@ -338,7 +359,7 @@ def get_peer_comparison(symbol: str, sector: str) -> dict:
                 "pe_ratio": info.get("trailingPE", "N/A"),
                 "market_cap": info.get("marketCap", "N/A"),
             }
-        except:
+        except Exception:
             continue
-    
+
     return comparison
