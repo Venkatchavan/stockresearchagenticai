@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import yfinance as yf
 
 # Must be first Streamlit command
-st.set_page_config(
+st.set_page_config(  # pragma: no cover
     page_title="Stock Research Assistant 🇮🇳",
     page_icon="📊",
     layout="wide",
@@ -26,7 +26,7 @@ from config import NIFTY50_STOCKS, SECTORS
 
 
 # Custom CSS
-st.markdown("""
+st.markdown("""  # pragma: no cover
 <style>
     .main-header {
         font-size: 2.5rem;
@@ -1731,5 +1731,5 @@ def main():
                     st.metric(stock, "Loading...")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

@@ -6,9 +6,12 @@ Tests cover:
 - Task definitions
 - Task dependencies
 - Crew execution flow
+- Sync/async analysis functions
+- LiteLLM patch for Mistral content blocks
 """
 
 import pytest
+import asyncio
 from unittest.mock import patch, MagicMock
 
 
@@ -247,7 +250,136 @@ class TestErrorHandling:
         """Test handling of invalid analysis type."""
         with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
             from crews.research_crew import create_stock_research_crew
-            
+
             # Should fall back to default or handle gracefully
             crew = create_stock_research_crew("RELIANCE", "invalid_type")
             assert crew is not None
+
+
+class TestAnalyzeStockSync:
+    """Tests for analyze_stock_sync function."""
+
+    @pytest.mark.unit
+    def test_sync_returns_raw(self):
+        """Test that sync analysis returns result.raw when available."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import analyze_stock_sync
+
+            mock_result = MagicMock()
+            mock_result.raw = "# Report for RELIANCE"
+
+            with patch('crews.research_crew.create_stock_research_crew') as mock_create:
+                mock_crew = MagicMock()
+                mock_crew.kickoff.return_value = mock_result
+                mock_create.return_value = mock_crew
+
+                result = analyze_stock_sync("RELIANCE", "full")
+                assert result == "# Report for RELIANCE"
+
+    @pytest.mark.unit
+    def test_sync_returns_output_fallback(self):
+        """Test that sync analysis falls back to result.output."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import analyze_stock_sync
+
+            mock_result = MagicMock(spec=[])  # no .raw attribute
+            mock_result.output = "Output report"
+            # Need to add output attribute explicitly since spec=[] strips all
+            type(mock_result).output = property(lambda self: "Output report")
+            type(mock_result).raw = property(lambda self: (_ for _ in ()).throw(AttributeError))
+
+            with patch('crews.research_crew.create_stock_research_crew') as mock_create:
+                mock_crew = MagicMock()
+                # Create a result that has no 'raw' but has 'output'
+                result_obj = type('Result', (), {'output': 'Output report'})()
+                mock_crew.kickoff.return_value = result_obj
+                mock_create.return_value = mock_crew
+
+                result = analyze_stock_sync("RELIANCE", "full")
+                assert result == "Output report"
+
+    @pytest.mark.unit
+    def test_sync_returns_str_fallback(self):
+        """Test that sync analysis falls back to str(result)."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import analyze_stock_sync
+
+            with patch('crews.research_crew.create_stock_research_crew') as mock_create:
+                mock_crew = MagicMock()
+                # Create a result with no raw or output
+                result_obj = "plain string result"
+                mock_crew.kickoff.return_value = result_obj
+                mock_create.return_value = mock_crew
+
+                result = analyze_stock_sync("RELIANCE", "full")
+                assert "plain string result" in result
+
+
+class TestAnalyzeStockAsync:
+    """Tests for async analyze_stock function."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_async_delegates_to_sync(self):
+        """Test that async version calls sync via to_thread."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import analyze_stock
+
+            with patch('crews.research_crew.analyze_stock_sync', return_value="async report") as mock_sync:
+                result = await analyze_stock("RELIANCE", "full")
+                assert result == "async report"
+                mock_sync.assert_called_once_with("RELIANCE", "full")
+
+
+class TestLiteLLMPatch:
+    """Tests for the LiteLLM patched extract function."""
+
+    @pytest.mark.unit
+    def test_patch_flattens_list_content(self):
+        """Test that list content blocks are flattened to string."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import _patched_extract_reasoning_content
+
+            # Mock the original to return (None, list_content)
+            list_content = [
+                {"type": "text", "text": "Hello "},
+                {"type": "text", "text": "World"},
+            ]
+            with patch('crews.research_crew._original_extract', return_value=(None, list_content)):
+                reasoning, content = _patched_extract_reasoning_content({"content": list_content})
+                assert content == "Hello World"
+                assert reasoning is None
+
+    @pytest.mark.unit
+    def test_patch_passes_string_through(self):
+        """Test that string content passes through unchanged."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import _patched_extract_reasoning_content
+
+            with patch('crews.research_crew._original_extract', return_value=(None, "plain string")):
+                reasoning, content = _patched_extract_reasoning_content({"content": "plain string"})
+                assert content == "plain string"
+
+    @pytest.mark.unit
+    def test_patch_handles_empty_list(self):
+        """Test that empty list results in None."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import _patched_extract_reasoning_content
+
+            with patch('crews.research_crew._original_extract', return_value=(None, [])):
+                reasoning, content = _patched_extract_reasoning_content({"content": []})
+                assert content is None
+
+    @pytest.mark.unit
+    def test_patch_handles_non_text_blocks(self):
+        """Test that non-text blocks are skipped."""
+        with patch.dict('os.environ', {'MISTRAL_API_KEY': 'test_key'}):
+            from crews.research_crew import _patched_extract_reasoning_content
+
+            list_content = [
+                {"type": "reference", "ref": "some-id"},
+                {"type": "text", "text": "Real content"},
+            ]
+            with patch('crews.research_crew._original_extract', return_value=(None, list_content)):
+                reasoning, content = _patched_extract_reasoning_content({"content": list_content})
+                assert content == "Real content"

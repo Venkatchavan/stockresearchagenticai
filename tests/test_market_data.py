@@ -539,8 +539,53 @@ class TestNseData:
     def test_real_nse_stock_quote(self, valid_symbol):
         """Integration test for NSE stock quote."""
         from tools.market_data import get_nse_stock_quote
-        
+
         result = get_nse_stock_quote.func(valid_symbol)
         data = json.loads(result)
-        
+
         assert isinstance(data, dict)
+
+
+class TestGetPeerComparison:
+    """Tests for get_peer_comparison helper function."""
+
+    @pytest.mark.unit
+    def test_returns_dict_with_peers(self):
+        """Test that get_peer_comparison returns a dict of peer data."""
+        from tools.market_data import get_peer_comparison
+
+        mock_ticker = MagicMock()
+        mock_ticker.info = {
+            "currentPrice": 3500,
+            "trailingPE": 25.0,
+            "marketCap": 500_000_000_000,
+        }
+
+        with patch("tools.market_data.yf.Ticker", return_value=mock_ticker):
+            result = get_peer_comparison("RELIANCE", "ENERGY")
+
+        assert isinstance(result, dict)
+        # Should have up to 4 peers (RELIANCE itself excluded)
+        assert len(result) <= 4
+
+    @pytest.mark.unit
+    def test_invalid_sector_returns_empty(self):
+        """Test that an unknown sector returns empty comparison."""
+        from tools.market_data import get_peer_comparison
+
+        result = get_peer_comparison("RELIANCE", "NONEXISTENT_SECTOR")
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_peer_exception_skipped(self):
+        """Test that exceptions for individual peers are silently skipped."""
+        from tools.market_data import get_peer_comparison
+
+        def side_effect(sym):
+            raise ConnectionError("Network error")
+
+        with patch("tools.market_data.yf.Ticker", side_effect=side_effect):
+            result = get_peer_comparison("RELIANCE", "ENERGY")
+
+        # All peers failed, should return empty
+        assert result == {}

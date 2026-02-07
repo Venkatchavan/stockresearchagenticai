@@ -196,6 +196,64 @@ class TestFundamentalThresholds:
     def test_roe_roce_minimums_positive(self):
         """Test that ROE/ROCE minimums are positive."""
         from config import FUNDAMENTAL_THRESHOLDS
-        
+
         assert FUNDAMENTAL_THRESHOLDS["roe_min"] > 0
         assert FUNDAMENTAL_THRESHOLDS["roce_min"] > 0
+
+
+class TestEnsureDirs:
+    """Tests for ensure_dirs method."""
+
+    @pytest.mark.unit
+    def test_ensure_dirs_creates_directories(self, tmp_path):
+        """Test that ensure_dirs creates all required directories."""
+        from config import Settings
+
+        s = Settings(
+            _env_file=None,
+        )
+        # Override dirs to temp
+        s.data_dir = tmp_path / "data"
+        s.reports_dir = tmp_path / "data" / "reports"
+        s.cache_dir = tmp_path / "data" / "cache"
+
+        s.ensure_dirs()
+        assert s.data_dir.exists()
+        assert s.reports_dir.exists()
+        assert s.cache_dir.exists()
+
+    @pytest.mark.unit
+    def test_ensure_dirs_idempotent(self, tmp_path):
+        """Test that calling ensure_dirs twice doesn't error."""
+        from config import Settings
+
+        s = Settings(_env_file=None)
+        s.data_dir = tmp_path / "data"
+        s.reports_dir = tmp_path / "data" / "reports"
+        s.cache_dir = tmp_path / "data" / "cache"
+
+        s.ensure_dirs()
+        s.ensure_dirs()  # Second call should not error
+        assert s.data_dir.exists()
+
+    @pytest.mark.unit
+    def test_admin_ids_invalid_value(self):
+        """Test that non-numeric admin IDs raise ValueError."""
+        from config import Settings
+
+        s = Settings(telegram_admin_ids="abc,def", _env_file=None)
+        with pytest.raises(ValueError):
+            _ = s.admin_ids
+
+
+class TestReportConfig:
+    """Tests for report configuration constants."""
+
+    @pytest.mark.unit
+    def test_report_config_defined(self):
+        """Test that report config is properly defined."""
+        from config import REPORT_CONFIG
+
+        assert "include_charts" in REPORT_CONFIG
+        assert "historical_years" in REPORT_CONFIG
+        assert REPORT_CONFIG["historical_years"] > 0

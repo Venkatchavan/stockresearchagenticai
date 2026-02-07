@@ -1,272 +1,294 @@
-"""
-Tests for CLI entry scripts (run_analysis.py, run_bot.py)
+"""Tests for CLI entry scripts (run_analysis.py, run_bot.py)
 
-Tests command-line argument parsing and script logic.
+Tests the REAL functions with proper mocking of external dependencies.
 """
 
+import json
 import pytest
 import sys
-from unittest.mock import patch, MagicMock
-from io import StringIO
+from unittest.mock import patch, MagicMock, call
 
 
-class TestRunAnalysisArgParsing:
-    """Tests for run_analysis.py argument parsing."""
-    
-    @pytest.mark.unit
-    def test_symbol_argument_required(self):
-        """Test that symbol argument is expected."""
-        # Simulate the argument structure
-        import argparse
-        
-        parser = argparse.ArgumentParser()
-        parser.add_argument("symbol", help="Stock symbol")
-        parser.add_argument("--type", choices=["full", "quick", "technical"], default="full")
-        
-        args = parser.parse_args(["RELIANCE"])
-        assert args.symbol == "RELIANCE"
-        assert args.type == "full"
-    
-    @pytest.mark.unit
-    def test_analysis_type_options(self):
-        """Test analysis type argument options."""
-        import argparse
-        
-        parser = argparse.ArgumentParser()
-        parser.add_argument("symbol")
-        parser.add_argument("--type", choices=["full", "quick", "technical"], default="full")
-        
-        # Test quick type
-        args = parser.parse_args(["TCS", "--type", "quick"])
-        assert args.type == "quick"
-        
-        # Test technical type
-        args = parser.parse_args(["INFY", "--type", "technical"])
-        assert args.type == "technical"
-    
-    @pytest.mark.unit
-    def test_symbol_normalization_in_cli(self):
-        """Test symbol is normalized properly."""
-        symbol = "reliance"
-        normalized = symbol.upper().strip()
-        assert normalized == "RELIANCE"
-    
-    @pytest.mark.unit
-    def test_help_flag_structure(self):
-        """Test help produces proper structure."""
-        import argparse
-        
-        parser = argparse.ArgumentParser(
-            description="Stock Research Assistant CLI"
-        )
-        parser.add_argument("symbol", help="Stock symbol to analyze")
-        parser.add_argument("--type", "-t", choices=["full", "quick", "technical"])
-        parser.add_argument("--output", "-o", help="Output file path")
-        
-        # Should not raise
-        assert parser.format_help() is not None
+# ---------------------------------------------------------------------------
+# run_analysis.py tests
+# ---------------------------------------------------------------------------
 
 
-class TestRunAnalysisLogic:
-    """Tests for run_analysis.py logic."""
-    
+class TestRunAnalysisFunction:
+    """Tests for the run_analysis() function."""
+
     @pytest.mark.unit
-    def test_api_key_check(self):
-        """Test API key validation logic."""
-        def check_api_key(key):
-            if not key or key == "":
-                return False
-            return True
-        
-        assert check_api_key("valid_key") == True
-        assert check_api_key("") == False
-        assert check_api_key(None) == False
-    
+    @patch("run_analysis.console")
+    @patch("run_analysis.settings")
+    def test_run_analysis_no_api_key(self, mock_settings, mock_console):
+        """When mistral_api_key is empty, run_analysis prints an error and returns early."""
+        mock_settings.mistral_api_key = ""
+
+        from run_analysis import run_analysis
+
+        run_analysis("RELIANCE")
+
+        # Should have printed the API-key error message
+        printed_texts = [str(c) for c in mock_console.print.call_args_list]
+        assert any("MISTRAL_API_KEY" in t for t in printed_texts)
+
     @pytest.mark.unit
-    def test_output_formatting(self):
-        """Test output formatting for CLI."""
-        def format_cli_output(result, symbol):
-            header = f"{'=' * 50}\n"
-            header += f"Analysis for {symbol}\n"
-            header += f"{'=' * 50}\n"
-            return header + result
-        
-        output = format_cli_output("Test result", "RELIANCE")
-        assert "RELIANCE" in output
-        assert "=" in output
-    
+    @patch("run_analysis.console")
+    @patch("run_analysis.analyze_stock_sync", return_value="## Buy RELIANCE")
+    @patch("run_analysis.settings")
+    def test_run_analysis_success(self, mock_settings, mock_sync, mock_console):
+        """When API key is set, run_analysis calls analyze_stock_sync and prints the report."""
+        mock_settings.mistral_api_key = "test-key-123"
+
+        from run_analysis import run_analysis
+
+        run_analysis("RELIANCE", "full")
+
+        mock_sync.assert_called_once_with("RELIANCE", "full")
+
     @pytest.mark.unit
-    def test_save_to_file_logic(self):
-        """Test save to file logic."""
-        from pathlib import Path
-        import tempfile
-        import os
-        
-        # Create temp file and write
-        fd, path = tempfile.mkstemp(suffix='.txt')
-        try:
-            content = "Test analysis result"
-            with os.fdopen(fd, 'w') as f:
-                f.write(content)
-            
-            # Verify file was written
-            written = Path(path).read_text()
-            assert written == content
-        finally:
-            os.unlink(path)
-    
-    @pytest.mark.unit
-    def test_elapsed_time_calculation(self):
-        """Test elapsed time calculation."""
-        from datetime import datetime
-        import time
-        
-        start = datetime.now()
-        time.sleep(0.01)  # Small delay
-        end = datetime.now()
-        
-        elapsed = (end - start).total_seconds()
-        assert elapsed > 0
+    @patch("run_analysis.console")
+    @patch("run_analysis.analyze_stock_sync", side_effect=ValueError("LLM timeout"))
+    @patch("run_analysis.settings")
+    def test_run_analysis_exception(self, mock_settings, mock_sync, mock_console):
+        """When analyze_stock_sync raises, the error is caught and printed."""
+        mock_settings.mistral_api_key = "test-key-123"
+
+        from run_analysis import run_analysis
+
+        # Should NOT raise
+        run_analysis("TCS", "quick")
+
+        printed_texts = [str(c) for c in mock_console.print.call_args_list]
+        assert any("Error" in t or "error" in t.lower() for t in printed_texts)
 
 
-class TestRunBotLogic:
-    """Tests for run_bot.py logic."""
-    
+class TestQuickCheckFunction:
+    """Tests for the quick_check() function."""
+
     @pytest.mark.unit
-    def test_token_validation(self):
-        """Test bot token validation."""
-        def validate_token(token):
-            if not token:
-                return False
-            # Telegram tokens are typically long strings with a colon
-            if len(token) < 20:
-                return False
-            return True
-        
-        assert validate_token("1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ") == True
-        assert validate_token("") == False
-        assert validate_token("short") == False
-    
+    @patch("run_analysis.console")
+    def test_quick_check_success(self, mock_console):
+        """quick_check renders price data when tools return valid JSON."""
+        price_json = json.dumps({
+            "current_price": 2450.50,
+            "change": 25.30,
+            "change_percent": 1.04,
+            "high": 2470.00,
+            "low": 2420.00,
+            "volume": 5_000_000,
+        })
+        info_json = json.dumps({
+            "company_name": "Reliance Industries",
+            "sector": "Energy",
+            "market_cap_category": "Large Cap",
+        })
+
+        with patch("tools.market_data.get_stock_price") as mock_price, \
+             patch("tools.market_data.get_stock_info") as mock_info:
+            mock_price.run = MagicMock(return_value=price_json)
+            mock_info.run = MagicMock(return_value=info_json)
+
+            from run_analysis import quick_check
+            quick_check("RELIANCE")
+
+        mock_price.run.assert_called_once_with("RELIANCE")
+        mock_info.run.assert_called_once_with("RELIANCE")
+        # Console should have received a Panel via print
+        assert mock_console.print.call_count >= 1
+
     @pytest.mark.unit
-    def test_logging_setup(self):
-        """Test logging configuration."""
-        import logging
-        
-        # Test that logging can be configured
-        logger = logging.getLogger("test_bot")
-        logger.setLevel(logging.INFO)
-        
-        assert logger.level == logging.INFO
-    
+    @patch("run_analysis.console")
+    def test_quick_check_error_symbol(self, mock_console):
+        """quick_check handles an 'error' key in the price response."""
+        price_json = json.dumps({"error": "Symbol XYZXYZ not found"})
+        info_json = json.dumps({})
+
+        with patch("tools.market_data.get_stock_price") as mock_price, \
+             patch("tools.market_data.get_stock_info") as mock_info:
+            mock_price.run = MagicMock(return_value=price_json)
+            mock_info.run = MagicMock(return_value=info_json)
+
+            from run_analysis import quick_check
+            quick_check("XYZXYZ")
+
+        printed_texts = [str(c) for c in mock_console.print.call_args_list]
+        assert any("Error" in t or "error" in t.lower() for t in printed_texts)
+
     @pytest.mark.unit
-    def test_environment_variable_loading(self):
-        """Test environment variable loading."""
-        import os
-        
-        # Test with mock environment
-        with patch.dict(os.environ, {'TEST_VAR': 'test_value'}):
-            assert os.environ.get('TEST_VAR') == 'test_value'
+    @patch("run_analysis.console")
+    def test_quick_check_exception(self, mock_console):
+        """quick_check catches generic exceptions from tools."""
+        with patch("tools.market_data.get_stock_price") as mock_price:
+            mock_price.run = MagicMock(side_effect=ConnectionError("Network error"))
+
+            from run_analysis import quick_check
+            quick_check("RELIANCE")
+
+        printed_texts = [str(c) for c in mock_console.print.call_args_list]
+        assert any("Error" in t or "error" in t.lower() for t in printed_texts)
 
 
-class TestCLIErrorHandling:
-    """Tests for CLI error handling."""
-    
+class TestListStocksFunction:
+    """Tests for the list_stocks() function."""
+
     @pytest.mark.unit
-    def test_invalid_symbol_handling(self):
-        """Test handling of invalid symbols."""
-        from config import NIFTY50_STOCKS
-        
-        def validate_and_warn(symbol):
-            if symbol not in NIFTY50_STOCKS:
-                return f"Warning: {symbol} is not in NIFTY 50"
-            return None
-        
-        warning = validate_and_warn("UNKNOWN123")
-        assert "Warning" in warning
-        
-        no_warning = validate_and_warn("RELIANCE")
-        assert no_warning is None
-    
-    @pytest.mark.unit
-    def test_keyboard_interrupt_message(self):
-        """Test KeyboardInterrupt handling message."""
-        def get_interrupt_message():
-            return "\n\nAnalysis cancelled by user."
-        
-        msg = get_interrupt_message()
-        assert "cancelled" in msg.lower()
-    
-    @pytest.mark.unit
-    def test_exception_formatting(self):
-        """Test exception message formatting."""
-        def format_error(e):
-            return f"Error: {type(e).__name__}: {str(e)}"
-        
-        try:
-            raise ValueError("Test error")
-        except ValueError as e:
-            formatted = format_error(e)
-            assert "ValueError" in formatted
-            assert "Test error" in formatted
+    @patch("run_analysis.console")
+    def test_list_stocks_prints(self, mock_console):
+        """list_stocks prints NIFTY 50 stocks and sectors without crashing."""
+        from run_analysis import list_stocks
+
+        list_stocks()
+
+        # At minimum: header for NIFTY 50, rows of stocks, header for sectors, sector rows
+        assert mock_console.print.call_count >= 3
+        printed_texts = " ".join(str(c) for c in mock_console.print.call_args_list)
+        assert "NIFTY" in printed_texts or "Sector" in printed_texts
 
 
-class TestCLIOutputFormatting:
-    """Tests for CLI output formatting."""
-    
+class TestMainFunction:
+    """Tests for main() argparse dispatch."""
+
     @pytest.mark.unit
-    def test_rich_panel_content(self):
-        """Test content for Rich panel display."""
-        def create_panel_content(symbol, analysis_type):
-            return f"Analyzing: {symbol}\nType: {analysis_type}"
-        
-        content = create_panel_content("TCS", "full")
-        assert "TCS" in content
-        assert "full" in content
-    
+    @patch("run_analysis.list_stocks")
+    @patch("run_analysis.console")
+    def test_main_with_list_flag(self, mock_console, mock_list):
+        """main() with --list calls list_stocks()."""
+        from run_analysis import main
+
+        with patch("sys.argv", ["run_analysis.py", "--list"]):
+            main()
+
+        mock_list.assert_called_once()
+
     @pytest.mark.unit
-    def test_progress_message(self):
-        """Test progress message formatting."""
-        def get_progress_message(step, total):
-            return f"Step {step}/{total} completed"
-        
-        msg = get_progress_message(3, 6)
-        assert "3" in msg
-        assert "6" in msg
-    
+    @patch("run_analysis.console")
+    def test_main_no_symbol(self, mock_console):
+        """main() with no arguments prints help and a tip."""
+        from run_analysis import main
+
+        with patch("sys.argv", ["run_analysis.py"]):
+            main()
+
+        printed_texts = " ".join(str(c) for c in mock_console.print.call_args_list)
+        assert "Tip" in printed_texts or "run_analysis" in printed_texts
+
     @pytest.mark.unit
-    def test_completion_summary(self):
-        """Test completion summary formatting."""
-        def create_summary(symbol, elapsed_seconds):
-            minutes = int(elapsed_seconds // 60)
-            seconds = int(elapsed_seconds % 60)
-            return f"Analysis of {symbol} completed in {minutes}m {seconds}s"
-        
-        summary = create_summary("INFY", 125)
-        assert "INFY" in summary
-        assert "2m" in summary
-        assert "5s" in summary
+    @patch("run_analysis.run_analysis")
+    @patch("run_analysis.console")
+    def test_main_with_symbol(self, mock_console, mock_run):
+        """main() with a bare symbol dispatches to run_analysis(symbol, 'full')."""
+        from run_analysis import main
+
+        with patch("sys.argv", ["run_analysis.py", "RELIANCE"]):
+            main()
+
+        mock_run.assert_called_once_with("RELIANCE", "full")
+
+    @pytest.mark.unit
+    @patch("run_analysis.quick_check")
+    @patch("run_analysis.console")
+    def test_main_quick_flag(self, mock_console, mock_quick):
+        """main() with --quick dispatches to quick_check(symbol)."""
+        from run_analysis import main
+
+        with patch("sys.argv", ["run_analysis.py", "TCS", "--quick"]):
+            main()
+
+        mock_quick.assert_called_once_with("TCS")
 
 
-class TestConfigValidation:
-    """Tests for configuration validation in scripts."""
-    
+# ---------------------------------------------------------------------------
+# run_bot.py tests
+# ---------------------------------------------------------------------------
+
+
+class TestRunBotMain:
+    """Tests for run_bot.py main()."""
+
     @pytest.mark.unit
-    def test_settings_import(self):
-        """Test settings can be imported."""
-        from config import settings
-        
-        assert settings is not None
-    
+    @patch("run_bot.settings")
+    def test_run_bot_main_no_token(self, mock_settings):
+        """main() exits with code 1 when telegram_bot_token is empty."""
+        mock_settings.telegram_bot_token = ""
+        mock_settings.mistral_api_key = "some-key"
+
+        from run_bot import main
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+
     @pytest.mark.unit
-    def test_nifty50_available(self):
-        """Test NIFTY50 stocks list is available."""
-        from config import NIFTY50_STOCKS
-        
-        assert len(NIFTY50_STOCKS) == 50
-    
+    @patch("run_bot.run_bot")
+    @patch("run_bot.settings")
+    def test_run_bot_main_no_mistral_key(self, mock_settings, mock_run_bot):
+        """main() warns but continues when mistral_api_key is empty."""
+        mock_settings.telegram_bot_token = "12345:ABCDEfghijKLMNopqrst"
+        mock_settings.mistral_api_key = ""
+        mock_settings.llm_model = "mistral/mistral-large-latest"
+        mock_settings.cache_ttl_minutes = 15
+
+        from run_bot import main
+
+        main()
+
+        # run_bot should still be called (limited functionality)
+        mock_run_bot.assert_called_once()
+
     @pytest.mark.unit
-    def test_sectors_available(self):
-        """Test sectors are available."""
-        from config import SECTORS
-        
-        assert len(SECTORS) > 0
+    @patch("run_bot.run_bot")
+    @patch("run_bot.settings")
+    def test_run_bot_main_success(self, mock_settings, mock_run_bot):
+        """main() calls run_bot() when both tokens are present."""
+        mock_settings.telegram_bot_token = "12345:ABCDEfghijKLMNopqrst"
+        mock_settings.mistral_api_key = "test-mistral-key"
+        mock_settings.llm_model = "mistral/mistral-large-latest"
+        mock_settings.cache_ttl_minutes = 15
+
+        from run_bot import main
+
+        main()
+
+        mock_run_bot.assert_called_once()
+
+    @pytest.mark.unit
+    @patch("run_bot.run_bot", side_effect=KeyboardInterrupt)
+    @patch("run_bot.settings")
+    @patch("builtins.print")
+    def test_run_bot_main_keyboard_interrupt(self, mock_print, mock_settings, mock_run_bot):
+        """main() catches KeyboardInterrupt and prints a goodbye message."""
+        mock_settings.telegram_bot_token = "12345:ABCDEfghijKLMNopqrst"
+        mock_settings.mistral_api_key = "test-key"
+        mock_settings.llm_model = "mistral/mistral-large-latest"
+        mock_settings.cache_ttl_minutes = 15
+
+        from run_bot import main
+
+        # Should NOT raise
+        main()
+
+        printed_texts = " ".join(str(c) for c in mock_print.call_args_list)
+        assert "Goodbye" in printed_texts or "goodbye" in printed_texts.lower()
+
+
+class TestRunAnalysisMarkdownFallback:
+    """Test for the Markdown rendering fallback in run_analysis."""
+
+    @pytest.mark.unit
+    @patch("run_analysis.console")
+    @patch("run_analysis.Markdown", side_effect=Exception("markdown parse error"))
+    @patch("run_analysis.analyze_stock_sync", return_value="plain text report")
+    @patch("run_analysis.settings")
+    def test_markdown_fallback(self, mock_settings, mock_sync, mock_md, mock_console):
+        """When Markdown() raises, run_analysis falls back to plain text."""
+        mock_settings.mistral_api_key = "test-key"
+
+        from run_analysis import run_analysis
+
+        run_analysis("RELIANCE", "full")
+
+        # console.print should have been called with the plain text report
+        printed_texts = [str(c) for c in mock_console.print.call_args_list]
+        assert any("plain text report" in t for t in printed_texts)

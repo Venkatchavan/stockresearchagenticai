@@ -56,5 +56,5 @@ def main():
         print("\n\n👋 Bot stopped. Goodbye!")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

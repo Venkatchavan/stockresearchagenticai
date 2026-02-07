@@ -476,3 +476,146 @@ class TestSignalGeneration:
             signal = "neutral"
         
         assert signal in ["potential_buy", "potential_sell", "neutral"]
+
+
+class TestFundamentalRating:
+    """Tests for the overall_rating logic in get_fundamental_metrics."""
+
+    def _make_info(self, pe=0, pb=0, roe=0, debt_equity=0, earnings_growth=0):
+        """Helper: build a yfinance info dict with specified fundamentals."""
+        return {
+            "trailingPE": pe,
+            "forwardPE": pe,
+            "priceToBook": pb,
+            "priceToSalesTrailing12Months": 0,
+            "pegRatio": 0,
+            "enterpriseToEbitda": 0,
+            "returnOnEquity": roe,
+            "returnOnAssets": 0,
+            "profitMargins": 0,
+            "operatingMargins": 0,
+            "grossMargins": 0,
+            "debtToEquity": debt_equity,
+            "currentRatio": 0,
+            "quickRatio": 0,
+            "trailingEps": 0,
+            "forwardEps": 0,
+            "bookValue": 0,
+            "dividendYield": 0,
+            "dividendRate": 0,
+            "payoutRatio": 0,
+            "earningsGrowth": earnings_growth,
+            "revenueGrowth": 0,
+            "earningsQuarterlyGrowth": 0,
+            "marketCap": 100_000_000_000,
+            "enterpriseValue": 100_000_000_000,
+            "totalRevenue": 50_000_000_000,
+            "ebitda": 10_000_000_000,
+            "longName": "Test Corp",
+            "currentPrice": 2500,
+            "previousClose": 2480,
+        }
+
+    @pytest.mark.unit
+    def test_strong_buy_rating(self):
+        """Score >= 70% should give STRONG BUY."""
+        from tools.analysis import get_fundamental_metrics
+
+        # All metrics excellent: PE<15 (+10), PB<1 (+10), ROE>=15% (+10),
+        # D/E low (+10), earnings growth>=10% (+10) → 50/50 = 100%
+        info = self._make_info(pe=10, pb=0.8, roe=0.20, debt_equity=50, earnings_growth=0.15)
+
+        mock_ticker = MagicMock()
+        mock_ticker.info = info
+
+        with patch("tools.analysis.yf.Ticker", return_value=mock_ticker):
+            result = json.loads(get_fundamental_metrics.func("TEST"))
+
+        assert result["overall_rating"] == "STRONG BUY"
+
+    @pytest.mark.unit
+    def test_buy_rating(self):
+        """Score 55-69% should give BUY."""
+        from tools.analysis import get_fundamental_metrics
+
+        # PE fair (+5), PB undervalued (+10), ROE>=15% (+10),
+        # D/E high (+0), earnings_growth=0 → 25/40 = 62.5%
+        info = self._make_info(pe=20, pb=0.8, roe=0.20, debt_equity=200, earnings_growth=0)
+
+        mock_ticker = MagicMock()
+        mock_ticker.info = info
+
+        with patch("tools.analysis.yf.Ticker", return_value=mock_ticker):
+            result = json.loads(get_fundamental_metrics.func("TEST"))
+
+        assert result["overall_rating"] == "BUY"
+
+    @pytest.mark.unit
+    def test_hold_rating(self):
+        """Score 40-54% should give HOLD."""
+        from tools.analysis import get_fundamental_metrics
+
+        # PE fair (+5), PB overvalued (+0), ROE moderate (+5),
+        # D/E healthy (+10), no growth → 20/40 = 50%
+        info = self._make_info(pe=20, pb=6, roe=0.12, debt_equity=50, earnings_growth=0)
+
+        mock_ticker = MagicMock()
+        mock_ticker.info = info
+
+        with patch("tools.analysis.yf.Ticker", return_value=mock_ticker):
+            result = json.loads(get_fundamental_metrics.func("TEST"))
+
+        assert result["overall_rating"] == "HOLD"
+
+    @pytest.mark.unit
+    def test_sell_rating(self):
+        """Score 25-39% should give SELL."""
+        from tools.analysis import get_fundamental_metrics
+
+        # PE overvalued (+0), PB overvalued (+0), ROE moderate (+5),
+        # D/E high (+0), small growth (+5) → 10/50 = 20%... needs tuning
+        # PE overvalued (+0/10), PB fair? Let's try:
+        # PE=35 overvalued (0/10), PB=6 overvalued (0/10), ROE=0.12 moderate (5/10),
+        # D/E=50 healthy (10/10), growth=0.05 partial (5/10) → 20/50=40%.. that's HOLD
+        # Need: PE=35 (0/10), PB=3 fair (5/10), ROE=0.12 mod (5/10), D/E=200 high (0/10), growth=0 → 10/40=25%
+        info = self._make_info(pe=35, pb=3, roe=0.12, debt_equity=200, earnings_growth=0)
+
+        mock_ticker = MagicMock()
+        mock_ticker.info = info
+
+        with patch("tools.analysis.yf.Ticker", return_value=mock_ticker):
+            result = json.loads(get_fundamental_metrics.func("TEST"))
+
+        assert result["overall_rating"] == "SELL"
+
+    @pytest.mark.unit
+    def test_strong_sell_rating(self):
+        """Score < 25% should give STRONG SELL."""
+        from tools.analysis import get_fundamental_metrics
+
+        # PE overvalued (+0), PB overvalued (+0), ROE low (+0),
+        # D/E high (+0), no growth → 0/40 = 0%
+        info = self._make_info(pe=35, pb=6, roe=0.05, debt_equity=200, earnings_growth=0)
+
+        mock_ticker = MagicMock()
+        mock_ticker.info = info
+
+        with patch("tools.analysis.yf.Ticker", return_value=mock_ticker):
+            result = json.loads(get_fundamental_metrics.func("TEST"))
+
+        assert result["overall_rating"] == "STRONG SELL"
+
+    @pytest.mark.unit
+    def test_insufficient_data_rating(self):
+        """All zeros should give INSUFFICIENT DATA."""
+        from tools.analysis import get_fundamental_metrics
+
+        info = self._make_info()  # all zeros
+
+        mock_ticker = MagicMock()
+        mock_ticker.info = info
+
+        with patch("tools.analysis.yf.Ticker", return_value=mock_ticker):
+            result = json.loads(get_fundamental_metrics.func("TEST"))
+
+        assert result["overall_rating"] == "INSUFFICIENT DATA"
