@@ -368,7 +368,7 @@ def get_trending_stocks() -> dict:
     """Get top gainers and losers from NSE (cached, not a CrewAI tool).
 
     Returns dict with 'gainers' and 'losers' lists.
-    Each entry has 'symbol', 'ltp', 'netPrice' (change %).
+    Each entry has 'symbol', 'ltp', 'net_price' (change %).
     Falls back to empty lists on failure.
     """
     cache_key = "trending_stocks"
