@@ -313,7 +313,7 @@ def render_sidebar():
             with trend_tab1:
                 for g in gainers[:5]:
                     sym = g.get("symbol", "")
-                    chg = g.get("netPrice", 0)
+                    chg = g.get("net_price", 0) or g.get("netPrice", 0)
                     st.markdown(f"**{sym}** :green[+{chg}%]")
                 gainer_symbols = [g.get("symbol", "") for g in gainers[:5] if g.get("symbol")]
                 selected_gainer = st.selectbox(
@@ -328,7 +328,7 @@ def render_sidebar():
             with trend_tab2:
                 for ls in losers[:5]:
                     sym = ls.get("symbol", "")
-                    chg = ls.get("netPrice", 0)
+                    chg = ls.get("net_price", 0) or ls.get("netPrice", 0)
                     st.markdown(f"**{sym}** :red[{chg}%]")
                 loser_symbols = [ls.get("symbol", "") for ls in losers[:5] if ls.get("symbol")]
                 selected_loser = st.selectbox(
@@ -1247,8 +1247,8 @@ def _generate_pdf_report(symbol: str, markdown_report: str, report_time: str) ->
     # Title
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(27, 42, 74)  # dark navy
-    pdf.cell(w=0, text=f"Stock Research Report -- {symbol}",
-             new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.multi_cell(w=0, h=9, text=f"Stock Research Report -- {symbol}",
+                   new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.ln(4)
 
     # Timestamp
@@ -1359,20 +1359,20 @@ def _generate_pdf_report(symbol: str, markdown_report: str, report_time: str) ->
         if stripped.startswith("### "):
             pdf.set_font("Helvetica", "B", 12)
             pdf.set_text_color(27, 42, 74)
-            pdf.cell(w=0, text=clean_text[4:] if clean_text.startswith("### ") else _strip_inline_md(stripped[4:]),
-                     new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(w=0, h=6, text=clean_text[4:] if clean_text.startswith("### ") else _strip_inline_md(stripped[4:]),
+                           new_x="LMARGIN", new_y="NEXT")
             pdf.ln(2)
         elif stripped.startswith("## "):
             pdf.set_font("Helvetica", "B", 14)
             pdf.set_text_color(27, 42, 74)
-            pdf.cell(w=0, text=_strip_inline_md(stripped[3:]),
-                     new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(w=0, h=7, text=_strip_inline_md(stripped[3:]),
+                           new_x="LMARGIN", new_y="NEXT")
             pdf.ln(3)
         elif stripped.startswith("# "):
             pdf.set_font("Helvetica", "B", 16)
             pdf.set_text_color(27, 42, 74)
-            pdf.cell(w=0, text=_strip_inline_md(stripped[2:]),
-                     new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(w=0, h=8, text=_strip_inline_md(stripped[2:]),
+                           new_x="LMARGIN", new_y="NEXT")
             pdf.ln(4)
         elif stripped.startswith("---"):
             y = pdf.get_y()

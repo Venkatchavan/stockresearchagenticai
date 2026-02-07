@@ -32,8 +32,8 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 ```bash
 # Clone the repository
-git clone https://github.com/vishwaskv362/StockResearchAIAgent.git
-cd StockResearchAIAgent
+git clone https://github.com/vishwaskv362/StockResearchAgenticAI.git
+cd StockResearchAgenticAI
 
 # Install all dependencies (uv auto-creates .venv)
 uv sync
