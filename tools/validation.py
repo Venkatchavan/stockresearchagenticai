@@ -277,6 +277,8 @@ def sanity_check_metrics(symbol: str) -> str:
             if roe_pct < -100 or roe_pct > 200:
                 issues.append(f"Extreme ROE: {roe_pct:.1f}% (verify data quality)")
                 confidence -= 0.2
+            elif roe_pct < 0:
+                warnings.append(f"Negative ROE: {roe_pct:.1f}% (company is loss-making)")
         
         # Check debt to equity
         debt_to_equity = info.get('debtToEquity')
