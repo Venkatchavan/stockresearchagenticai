@@ -53,6 +53,7 @@ from agents.report_agent import report_writer_agent
 from agents.guardian_agent import guardian_agent
 from agents.valuation_agent import valuation_agent
 from agents.risk_agent import risk_agent
+from agents.critic_agent import critic_agent
 
 
 def create_stock_research_crew(symbol: str, analysis_type: str = "full") -> Crew:
@@ -371,7 +372,67 @@ Provide this as a TEXT report, NOT as tool calls.""",
     )
     
     # ==========================================
-    # Task 9: Write Final Report
+    # Task 9: Investment Committee Critic Review
+    # ==========================================
+    critic_task = Task(
+        description=f"""Challenge the investment thesis for {symbol} with rigorous adversarial review:
+        
+        Review the strategist's recommendation and provide:
+        1. **Top 5 Counterarguments**: Specific challenges across:
+           - Valuation risks (overpaying, multiple contraction)
+           - Execution risks (management, capital allocation)
+           - Sector/macro risks (regulatory, competitive, cyclical)
+           - Competitive risks (market share, pricing power)
+           - Financial risks (leverage, cash flow, working capital)
+        
+        2. **Thesis Invalidation Conditions**: What would prove the thesis wrong?
+           - Specific price levels that invalidate valuation case
+           - Fundamental triggers (earnings miss, margin compression)
+           - Management actions (governance issues, poor capital allocation)
+           - Macro/sector developments (regulatory changes, competition)
+        
+        3. **Missing Evidence**: What critical data points are absent?
+           - Key metrics not analyzed
+           - Important risks not addressed
+           - Alternative scenarios not considered
+        
+        4. **Vulnerability Rating**: Overall thesis strength
+           - LOW: Robust thesis with limited vulnerabilities
+           - MEDIUM: Solid case but meaningful risks present
+           - HIGH: Thesis has significant weaknesses or unknowns
+        
+        Your job is to stress-test the recommendation through devil's advocacy.
+        Think like a contrarian analyst who has seen Enron, Satyam, Yes Bank, IL&FS.
+        Force intellectual honesty and prevent groupthink.""",
+        expected_output=f"""Investment Committee Critic's Challenge Report for {symbol}:
+        
+        **TOP 5 COUNTERARGUMENTS:**
+        1. [Valuation Risk] - Specific concern with numbers
+        2. [Execution Risk] - Specific concern with evidence
+        3. [Sector/Macro Risk] - Specific concern with context
+        4. [Competitive Risk] - Specific concern with positioning
+        5. [Financial Risk] - Specific concern with metrics
+        
+        **THESIS INVALIDATION CONDITIONS:**
+        - Price Triggers: Levels that break valuation case
+        - Fundamental Triggers: Events that invalidate investment thesis
+        - Management Triggers: Actions that signal problems
+        - Macro Triggers: External developments that derail thesis
+        
+        **MISSING EVIDENCE:**
+        - Critical data points not analyzed
+        - Important risks not addressed
+        - Alternative scenarios not modeled
+        
+        **VULNERABILITY RATING:** [LOW/MEDIUM/HIGH]
+        - Justification for rating with specific concerns
+        - Overall assessment of thesis robustness""",
+        agent=critic_agent,
+        context=[strategy_task],  # Reviews strategist's recommendation
+    )
+    
+    # ==========================================
+    # Task 10: Write Final Report
     # ==========================================
     report_task = Task(
         description=f"""Create a comprehensive, well-structured research report for {symbol}:
@@ -390,6 +451,7 @@ Provide this as a TEXT report, NOT as tool calls.""",
         - Technical Analysis
         - Risk Analysis (from Risk Manager)
         - Investment Strategy
+        - Critic's Challenge (from Investment Committee Critic)
 
         STEP 3 - Structure the report with these sections:
         1. **Executive Summary** - Key takeaways in 3-4 bullet points
@@ -401,7 +463,8 @@ Provide this as a TEXT report, NOT as tool calls.""",
         7. **Risk Assessment** - VaR, drawdown, leverage, stop-loss levels
         8. **News & Sentiment** - Recent developments and sentiment
         9. **Recommendation** - Clear action with entry, target, stop-loss, risks
-        10. **Thesis Invalidation** - Exit conditions from risk analysis
+        10. **Critic's Challenge** - Top counterarguments from Investment Committee Critic
+        11. **Thesis Invalidation** - Exit conditions from risk analysis and critic review
 
         Formatting guidelines:
         - Use markdown with clear section headings
@@ -432,7 +495,7 @@ Provide this as a TEXT report, NOT as tool calls.""",
         - Price targets and stop-loss levels from technical analysis
         - Standard investment disclaimer""",
         agent=report_writer_agent,
-        context=[guardian_task, market_data_task, news_analysis_task, fundamental_task, valuation_task, technical_task, risk_task, strategy_task],
+        context=[guardian_task, market_data_task, news_analysis_task, fundamental_task, valuation_task, technical_task, risk_task, strategy_task, critic_task],
     )
     
     # ==========================================
@@ -445,6 +508,7 @@ Provide this as a TEXT report, NOT as tool calls.""",
             fundamental_task,
             valuation_task,
             strategy_task,
+            critic_task,
             report_task,
         ]
     elif analysis_type == "technical-only":
@@ -465,6 +529,7 @@ Provide this as a TEXT report, NOT as tool calls.""",
             technical_task,
             risk_task,
             strategy_task,
+            critic_task,
             report_task,
         ]
     
@@ -481,6 +546,7 @@ Provide this as a TEXT report, NOT as tool calls.""",
             technical_analyst_agent,
             risk_agent,
             investment_strategist_agent,
+            critic_agent,
             report_writer_agent,
         ],
         tasks=tasks,

@@ -11,6 +11,7 @@ from agents.report_agent import report_writer_agent
 from agents.guardian_agent import guardian_agent
 from agents.valuation_agent import valuation_agent
 from agents.risk_agent import risk_agent
+from agents.critic_agent import critic_agent
 
 __all__ = [
     "market_data_agent",
@@ -21,5 +22,6 @@ __all__ = [
     "technical_analyst_agent",
     "risk_agent",
     "investment_strategist_agent",
+    "critic_agent",
     "report_writer_agent",
 ]

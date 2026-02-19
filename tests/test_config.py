@@ -25,7 +25,7 @@ class TestSettings:
         settings = Settings(_env_file=None)
         
         # Check default values
-        assert settings.llm_model == "mistral/mistral-large-latest"
+        assert settings.llm_model == "mistral/mistral-small-latest"
         assert settings.llm_temperature == 0.7
         assert settings.cache_ttl_minutes == 15
         assert settings.max_requests_per_minute == 10

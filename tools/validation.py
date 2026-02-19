@@ -4,13 +4,10 @@ Validates input data for accuracy, completeness, and consistency
 """
 
 import json
-from datetime import datetime, timedelta
-from typing import Optional
 import yfinance as yf
-import pandas as pd
 from crewai.tools import tool
 
-from tools.market_data import get_stock_price, get_nse_stock_quote
+from tools.market_data import get_nse_stock_quote
 
 
 def _safe_json_dumps(data: dict, **kwargs) -> str:
