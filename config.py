@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # LLM Configuration
     # ==========================================
     mistral_api_key: str = Field(default="", env="MISTRAL_API_KEY")
-    llm_model: str = Field(default="mistral/mistral-small-latest", env="LLM_MODEL")
+    llm_model: str = Field(default="mistral/mistral-large-latest", env="LLM_MODEL")
     llm_temperature: float = Field(default=0.7, env="LLM_TEMPERATURE")
     llm_timeout: int = Field(default=600, env="LLM_TIMEOUT")
     llm_max_retries: int = Field(default=3, env="LLM_MAX_RETRIES")

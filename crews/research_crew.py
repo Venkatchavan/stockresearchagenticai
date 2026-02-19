@@ -195,7 +195,7 @@ Provide this as a TEXT report, NOT as tool calls.""",
         - Shareholding pattern analysis
         - Overall fundamental rating (Strong Buy to Strong Sell)""",
         agent=fundamental_analyst_agent,
-        context=[guardian_task],  # Use validated data from guardian
+        context=[market_data_task],
     )
     
     # ==========================================
